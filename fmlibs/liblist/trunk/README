@@ -1,0 +1,40 @@
+########################################################
+
+                   LIST LIBRARY 
+          
+########################################################
+	           
+		   Thomas Lavergne
+
+Contact: met.no, FoU, seksjon for fjernmåling.
+E-post: t.lavergne_AT_met.no
+Tel intern: 3364
+
+########################################################
+# INSTALLING
+########################################################
+First time installation (directory fresh from SVN):
+
+[:prompt:] ./autogen.sh
+
+Then (and for later configurations of the same directory):
+
+[:prompt:] ./configure --prefix=<INSTALLDIR>
+[:prompt:] make
+[:prompt:] make install
+
+########################################################
+# CHECKING / TESTING
+########################################################
+[:prompt:] cd test
+[:prompt:] make check
+[:prompt:] ./test1.exe
+[:prompt:] ./test2.exe
+
+########################################################
+# SYNOPSYS
+########################################################
+
+liblist is implemented to propose a easy-to-use and flexible
+container for any data object. The container allows inserting,
+deleting, searching, sorting, etc... 

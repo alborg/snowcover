@@ -1,0 +1,39 @@
+########################################################### 
+$Id$
+########################################################### 
+
+NAME:
+libfmcol
+
+PURPOSE:
+Collocation library suppportingvarious file formats at METNO. including
+feltfiles, METSAT-files, etc.
+
+REQUIREMENTS:
+o libfmutil (satellite utility functions)
+o libfmio (satellite I/O functions)
+o libproj (required by the libfmutil)
+o libusenwp (feltfile interface)
+o libhdf5 (storage format)
+
+INSTALL:
+1. ./configure --help | less
+2. ./configure
+3. make
+4. make install
+5. make clean
+
+NOTES:
+o Support for NWCSAF PPS products is yet not implemented. 
+o This new version which is adapted for libfmutil/libfmio is yet not tested.
+
+BUGS:
+
+AUTHOR:
+Øystein Godøy, met.no/FOU, 10.01.2005 
+
+MODIFIED:
+Øystein Godøy, METNO/FOU, 13.04.2007: Added Autoconf interface and changed
+satellite interface from libsatimg to libfmutil/libfmio.
+Øystein Godøy, METNO/FOU, 2012-12-12: Switched from HLHDF 0.54 and old PPS
+versions to HLHDF 0.79 and PPS2012 in support of PPS products.

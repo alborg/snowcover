@@ -1,0 +1,119 @@
+#
+#  NAME:
+#  NA
+#
+#  PURPOSE:
+#  Makefile
+#
+# To create libfmcol. libfmcol is a library for collocation of various
+# meteorological data useful when developing new algorithms for remote
+# sensing applications. 
+#
+#  REQUIREMENTS:
+#  NA
+#
+#  INPUT:
+#  NA
+#
+#  OUTPUT:
+#  NA
+#
+#  NOTES:
+# o make - builds library
+# o make install - installs libraryin LIBBASE (set below)
+# o make clean - removes object and archive files from src directory
+# o make distclean - performs make clean and removes installed parts
+# o make tarball - creates a tarball of library (does not work yet)
+#
+#  BUGS:
+#  NA
+#
+#  AUTHOR:
+#  Øystein Godøy, met.no/FOU, 07.01.2005 
+#
+#  MODIFIED:
+#  Øystein Godøy, METNO/FOU, 31.08.2007: MOdification to avoid
+#  recompilation of all source files when changes are made to only
+#  selected files.
+#
+#  CVS_ID:
+#  $Id$
+#
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+incdir = @includedir@
+libdir = @libdir@
+
+CFLAGS = @CFLAGS@ @DEFS@ -I./
+
+CPPFLAGS = @CPPFLAGS@
+
+LDFLAGS = @LDFLAGS@
+
+LIBS = @LIBS@
+
+
+HEADER_FILES = \
+  fmcol_config.h \
+  fmcol.h \
+  avhrr_stdat.h \
+  nwp_stdat.h \
+  nwp_read.h \
+  std_stdat.h \
+  safcm_stdat.h \
+  safssi_stdat.h \
+  safdli_stdat.h \
+  fmcolaccess.h
+
+SRC_FILES = \
+  decode_cfg.c \
+  error.c \
+  avhrr_stdat.c \
+  check_avhrr.c \
+  check_safct.c \
+  nwp_stdat.c \
+  nwp_read.c \
+  std_stdat.c \
+  safcm_stdat.c \
+  safssi_stdat.c \
+  safdli_stdat.c \
+  fmcolaccess.c \
+  fmcoltst.c
+
+AUTOMATED_FILES = \
+   Makefile \
+   fmcol_config.h
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+.PHONY: clean install distclean
+
+LIBFILE = libfmcol.a
+
+OBJ_FILES := $(SRC_FILES:.c=.o)
+
+$(LIBFILE): $(OBJ_FILES) 
+	$(AR) $(ARFLAGS) $(LIBFILE) $(OBJ_FILES)
+
+$(OBJ_FILES): $(HEADER_FILES)
+
+clean:
+	find $(srcdir) -name "*.o" -exec rm -f {} \;
+	find $(srcdir) -name "*.a" -exec rm -f {} \;
+
+distclean:
+	$(MAKE) clean
+	rm -rf $(AUTOMATED_FILES)
+
+install:
+	install -d $(incdir)
+	install --mode=644 $(HEADER_FILES) $(incdir)
+	install -d $(libdir)
+	install --mode=644 $(LIBFILE) $(libdir)
+

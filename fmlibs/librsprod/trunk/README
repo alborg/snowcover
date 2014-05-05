@@ -1,0 +1,197 @@
+########################################################
+
+                   RSPROD LIBRARY 
+          
+           (Remote Sensing Products Library)
+
+########################################################
+	           
+		   Thomas Lavergne
+
+Contact: met.no, FoU, seksjon for fjernmåling.
+E-post: t.lavergne_AT_met.no
+Tel intern: 3364
+
+########################################################
+# INSTALLING
+########################################################
+First time installation (directory fresh from SVN):
+
+[:prompt:] ./autogen.sh
+
+Then (and for later configurations of the same directory):
+
+[:prompt:] ./configure --with-prefix=<INSTALL-DIR> --with-netcdf=<PATH-TO-NETCDF>
+[:prompt:] make
+[:prompt:] make install
+
+The last command will install exported files as:
+<INSTALL-DIR>/include/rsprod.h
+<INSTALL-DIR>/include/dbl_list.h
+<INSTALL-DIR>/lib/librsprod.a
+<INSTALL-DIR>/lib/liblist.a
+<INSTALL-DIR>/lib/pkgconfig/rsprod.pc
+
+########################################################
+# CHECKING / TESTING
+########################################################
+[:prompt:] cd test
+[:prompt:] make check
+[:prompt:] ./testHW.exe
+[:prompt:] ./test1.exe
+
+########################################################
+# USING LIBRSPROD
+########################################################
+If your software has be compiled and linked against librsprod,
+you should somehow issue the following commands:
+gcc -c -o aux.o aux.c
+gcc -c -o prog.o prog.c -I<INSTALL-DIR>/include
+gcc -o prog prog.o aux.o -L<INSTALL-DIR>/lib -lrsprod -llist
+
+Alternatively, you can use the pkg-config tool:
+export PKG_CONFIG_PATH="<INSTALL-DIR>/lib/pkgconfig:${PKG_CONFIG_PATH}"
+gcc -c -o aux.o aux.c
+gcc -c -o prog.o prog.c `pkg-config --cflags rsprod`
+gcc -o prog prog.o aux.o `pkg-config --libs rsprod`
+
+########################################################
+# SYNOPSYS
+########################################################
+
+librsprod is a C library to interface a self-descibed 
+data model to netcdf (and hdf) files.
+
+In short, this data model is to have:
+
+rsprod_field/
+       |
+       |--- name : name of the field/dataset.
+       |
+       |--- rsprod_data/
+       |           |
+       |           |--- (void *) : non typed pointer to a chunk of memory containing the data.
+       |           |
+       |           |--- nbElems  : number of elements in the (void *).
+       |           |
+       |           |--- type     : a type information describing how to interpret and use the (void *).
+       |
+       |
+       |----- rsprod_dimensions/
+       |           |
+       |           |--- number of dimensions : 'dimensionality' of the dataset (1d, 2d, 3d,... datasets).   
+       |           |
+       |           |--- names[#dims]         : name for each dimension.
+       |           |
+       |           |--- length[#dims]        : length of each dimension/axis.
+       |
+       |
+       |----- rsprod_attributes/
+                   |
+	           list of rsprod_attr/
+		           |--- name     : name  
+                           |
+                           |--- (void *) : non typed pointer to a chunk of memory containing the attribute.
+                           |
+                           |--- nbElems  : number of elements in the (void *).
+                           |
+                           |--- type     : a type information describing how to interpret and use the (void *).
+		   
+
+This model should allow sufficient enough flexibility for interfacing with netcdf and hdf file formats and
+maybe others, later. The main objective is to provide a unique interface to a data structure which can cope
+with : 
+   1) several input/output data formats;
+   2) several data types;
+ 
+Most operations are checked for type mismatch and/or dimension mismatch which enhance the safety when
+reading files. 
+
+########################################################
+# PSEUDO-CODE EXAMPLES
+########################################################
+The following example sessions (peudo-code) could be easily adapted to other data types.
+
+##<BEGIN>########################## EXAMPLE PSEUDO CODE FOR READING 
+
+int ret;
+int ncid;
+
+ret = nc_open(filename, NC_NOWRITE, &ncid);
+
+rsprod_field *f;
+ret = rsprod_field_load_fromNetCDF(&f,"ice_conc",ncid);
+if (ret) { [ERROR-HANDLING: dataset-not-found]; }
+
+/* Test the type */
+if (rsprod_data_getType(f->data) != RSPROD_SHORT) {
+   [ERROR-HANDLING: dataset-wrong-type];
+}
+
+/* Access the (short-typed) pointer-to-data and fill value.. */
+short *iceconc;
+if ((*f->data->methods->accessValues)(f->data,&iceconc)) {
+   [ERROR-HANDLING: no-data];
+}
+short fillvals;
+if (rsprod_attributes_accessValue_short(f->attr,"_FillValue",&fillvals)) {
+   [ERROR-HANDLING: no-attribute-fillvalue];
+}
+
+/* Alternatively: 'unpack' the current field to float, using the scale_factor and add_offset 
+   attributes: */
+if (rsprod_field_unpack(f)) {
+   [ERROR-HANDLING];
+}
+/* f is now a float-typed field which can be used as such */
+
+nc_close(ncid);
+
+##<END>############################ EXAMPLE PSEUDO CODE FOR READING 
+
+
+##<BEGIN>########################## EXAMPLE PSEUDO CODE FOR CREATING AND WRITING
+
+int ret;
+
+/* Create a shared dimension object for all (nj x ni) datasets */ 
+char *dimnames[2];
+dimnames[0] = fmMalloc(strlen("nj")+1); strcpy(dimnames[0],"nj");
+dimnames[1] = fmMalloc(strlen("ni")+1); strcpy(dimnames[1],"ni");
+size_t dimlengths[2];
+dimlengths[0]  = numj;
+dimlengths[1]  = numi;
+short  dimorders[2];
+dimorders[0] = dimorders[1] = 1;
+
+rsprod_dimensions *outdims;
+ret = rsprod_dims_create(&outdims,2,dimnames,dimlengths,dimorders);
+if (ret) {
+   fprintf(stderr,"ERROR (%s) could not create the Dimension object for output grid.\n",progname);
+   exit(1);
+}
+printf("VERBOSE (%s) Dimensions for output grid:\n",progname);
+rsprod_dims_printInfo(outdims);
+
+/* create the count_obs field */
+rsprod_field *countObs_out;
+short fillvals = -99;
+addCoords = 1;
+if (rsprod_field_createStandard(
+   &countObs_out,"count_obs",RSPROD_SHORT,numi*numj,outdims,
+	    "Number of observations in period","numobs","1",
+	    &fillvals,NULL,NULL,1,NULL,count_obs))   {
+      fprintf(stderr,"ERROR (%s) could not create Field object count_obs.\n",progname);
+      exit(1);
+}
+
+/* open a netcdf file and write the field */
+int ncid;
+ret = nc_create(file,NC_NOCLOBBER,&ncid);
+ret = 0;
+ret += rsprod_field_writeToNetCDF(countObs_out,ncid);
+if (ret) { [ERROR-HANDLING]; }
+nc_close(ncid);
+
+##<END>########################## EXAMPLE PSEUDO CODE FOR CREATING AND WRITING
+

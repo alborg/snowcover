@@ -1,0 +1,53 @@
+/*
+ * NAME:
+ * config.h.in
+ *
+ * PURPOSE:
+ * Configuration file to be processed by autoconf scripts to specify which
+ * modules to use and which not to use.
+ *
+ * REQUIREMENTS:
+ *
+ * INPUT:
+ *
+ * OUTPUT:
+ *
+ * NOTES:
+ *
+ * BUGS:
+ *
+ * AUTHOR:
+ * Øystein Godøy, METNO/FOU, 12.10.2006 
+ *
+ * MODIFIED:
+ * NA
+ */
+
+
+/*
+ * Standard elements
+ */
+#undef PACKAGE_NAME
+#undef PACKAGE_TARNAME
+#undef PACKAGE_VERSION
+#undef PACKAGE_STRING
+#undef PACKAGE_BUGREPORT
+#undef STDC_HEADERS
+#undef HAVE_SYS_TYPES
+#undef HAVE_SYS_STAT
+#undef HAVE_STDLIB_H
+#undef HAVE_STRING_H
+#undef HAVE_MEMORY_H
+#undef HAVE_STRINGS_H
+#undef HAVE_INTTYPES_H
+#undef HAVE_STDINT_H
+#undef HAVE_UNISTD_H
+#undef HAVE_MALLOC
+
+/*
+ * Features to include or disable
+ */
+#undef HAVE_LIBPROJ
+#undef HAVE_FMUTIL
+#undef HAVE_HDF5
+#undef HAVE_TIFF

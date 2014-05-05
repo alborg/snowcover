@@ -1,0 +1,95 @@
+# 
+# TYPE:
+# Makefile
+#
+# PURPOSE:
+# To create libfmio. libfmio is a library for reading and writing of
+# various file formats used for satellite remote sensing. When using this
+# library libfmutil (the utility library for remote sensing data) is
+# required.  libfmio is based upon the libsatimg library, but in order to
+# avoid the KSPT MEOS libraries which are only available in binary format
+# at the Norwegian Meteorological Institute, the information contained
+# within libsatimg, libfmcoord and libfmsubtrack is reorganized into two
+# libraries - libfmutil and libfmio, the first being a prerequisite of the
+# latter. 
+#
+# NOTES:
+# o make - builds library
+# o make install - installs libraryin LIBBASE (set below)
+# o make clean - removes object and archive files from src directory
+# o make distclean - performs make clean and removes installed parts
+# o make tarball - creates a tarball of library (does not work yet)
+#
+# BUGS:
+# NA
+#
+# AUTHOR:
+# Øystein Godøy, met.no/FOU, 07.01.2005 
+#
+# MODIFICATION:
+# NA
+#
+
+SHELL = /bin/sh
+
+srcdir = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+incdir = @includedir@
+libdir = @libdir@
+
+CFLAGS = @CFLAGS@ @DEFS@ -I./
+
+CPPFLAGS = @CPPFLAGS@
+
+LDFLAGS = @LDFLAGS@
+
+LIBS = @LIBS@
+
+
+HEADER_FILES = \
+  fmio.h \
+  fm_aha_hd.h 
+
+SRC_FILES = \
+  fm_MITIFF_head.c \
+  fm_MITIFF_read.c \
+  fm_MITIFF_write.c \
+  fm_readheader.c \
+  fm_readdata.c \
+  fm_readdataMETSAT.c \
+  fm_aha_hd.c
+
+AUTOMATED_FILES = \
+   Makefile \
+   config.h
+
+.SUFFIXES:
+.SUFFIXES: .c .o
+
+.PHONY: clean install
+
+LIBFILE = libfmio.a
+
+OBJ_FILES := $(SRC_FILES:.c=.o)
+
+$(LIBFILE): $(OBJ_FILES) 
+	$(AR) $(ARFLAGS) $(LIBFILE) $(OBJ_FILES)
+
+$(OBJ_FILES): $(HEADER_FILES) $(SRC_FILES)
+
+clean:
+	find $(srcdir) -name "*.o" -exec rm -f {} \;
+	find $(srcdir) -name "*.a" -exec rm -f {} \;
+
+distclean:
+	$(MAKE) clean
+	rm -rf $(AUTOMATED_FILES)
+
+install:
+	install -d $(incdir)
+	install $(HEADER_FILES) $(incdir)
+	install -d $(libdir)
+	install $(LIBFILE) $(libdir)
+

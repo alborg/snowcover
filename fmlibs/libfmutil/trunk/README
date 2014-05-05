@@ -1,0 +1,43 @@
+NAME:
+libfmutil
+
+PURPOSE:
+Utility functions for processing satellite and radar imagery.
+
+REQUIREMENTS:
+o PROJ.4 (will compile without, but with disabled functionality)
+o Some m4cros are required to build the library. These are not part of the
+  software distribution, but have to be downloaded seperately at this time.
+
+NOTES:
+Check out the User Manual provided in Open Document and PDF formats within
+the doc directory. 
+
+For the impatient:
+    1. cvs export -r HEAD -d commonM4cros metnoBuildCommon/m4cros
+    2. autoreconf --install --verbose
+    3. ./configure --help
+    4. ./configure <use the proper options for your system>
+    5. make
+    6. make check
+    7. make install
+
+USE:
+If PROJ.4 functionality is required, e.g. by using functions defined
+within fmcoord.h, either "-D HAVE_LIBPROJ" should be added to compilator
+flags of the application or "#define HAVE_LIBPROJ" should be added within
+the code (either within a header file or in source code itself).
+
+e.g. gcc mytst.c -D HAVE_LIBPROJ -lfmutil -lproj -lm
+
+BUGS:
+
+AUTHOR:
+Øystein Godøy, met.no/FOU, 10.01.2005 
+
+MODIFIED:
+Øystein Godøy, METNO/FOU, 15.03.2007: Bug fixes concerning PROJ.4
+integration.
+Øystein Godøy, METNO/FOU, 21.02.2008: Modified according to the full
+autotools interface added.
+Thomas Lavergne, METNO/FOU, 28.11.2012: Add reference to 'make check'

@@ -1,0 +1,26 @@
+NAME:
+libfmio
+
+PURPOSE:
+I/O functions for processing satellite and radar imagery.
+
+REQUIREMENTS:
+o libfmutil (utility functions)
+o libmeos (KSPT MEOS support, optional by use of -DMEOS)
+o libmeos5 (KSPT MEOS support, optional by use of -DMEOS5)
+o libtiff (TIFF 6.0 support)
+o libjpeg (JPEG support)
+o libdf (NCSA HDF support)
+o libhdf5 (NCSA HDF5 support)
+o libz (compression support for HDF libraries)
+
+NOTES:
+
+BUGS:
+
+AUTHOR:
+Øystein Godøy, met.no/FOU, 10.01.2005 
+
+MODIFIED:
+NA
+

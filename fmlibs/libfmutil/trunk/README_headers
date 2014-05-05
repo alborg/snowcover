@@ -1,0 +1,56 @@
+
+PACKAGE   :   libfmutil
+FILE      :   README_headers
+AUTHORS   :   Thomas Lavergne, met.no/FoU, 12.09.2008
+
+A new way of handling header files in this library is introduced.
+The rationale and modus operandi are explained in this document.
+
+A- SITUATION BEFORE
+The library functionalities are encapsulated in several .c (source) files 
+which mostly are independent one from the other. Each source code file is
+associated with a .h (header) file. A header file tipically declares the
+macros, types and function prototypes for the functionalities implemented
+in its source file.
+This encapsulation in several source files is a good thing. Especially
+for development and maintenance of the library. It should be kept. The
+encapsulation in several header files is also an advantage for the 
+maintenance but is a drawback for the usage of the library by external 
+source code. Mainly, the issue is that it would be better to have a
+unique header file ('fmutil.h') to be #include'd by the external software
+wishing to use the library.
+In order to cope with this requirement, fmutil.h used to consit of a list
+of #include statements, listing in turn each of the other headers in the
+fmutil library. This worked fine but implied that the dozens or so header
+files needed to be installed in the include/ directory along with the 
+fmutil.h wrapper file. This ended up in a cluttering of header files in
+the installation tree.
+
+B- SITUATION NOW
+Because fmutil.h was merely a collection of #include statements, we can
+create it as a concatenation of all the contents of each header file.
+This is achieved, at compile time, by a script named 'prepare_fmutil_h.sh'.
+File fmutil.h is thus no more part of the distribution (removed from
+CVS) but is generated at compile time. A special construct in src/Makefile.am
+ensures that it is generated first, so that it can be included by fmutil's
+own source files (like the case in src/selalg.c). 
+Containing all what is in the header files, fmutil.h can be installed alone
+at make install step.
+
+C- TO BE INVESTIGATED/FIXED
+1) The use of a second level of inclusion in the header files (a header file
+   including an other) might be an issue. It seems currently that it only is
+   a counter-effective solution. In any case, if it is needed to include header
+   files from one of the libraries header files, make sure that system header files
+   are included by '#include <>' and local header files by '#include ""'.
+2) The list of local header files entering fmutil.h is stored at two locations: 
+   Makefile.am and prepare_fmutil_h.sh. It would be nice to collect all information
+   in one location only.
+
+D- ADDING A NEW HEADER FILE.
+When adding a new header file to the libfmutil library, make sure you follow the following
+steps:
+a) add the new header file to the content of variable 'ALLSUBHEADERS' in src/Makefile.am
+b) add the new header file to the content of variable 'srcnames' in src/prepare_fmutil_h.sh
+NOTE: the location in the list at which you enter the new header file might be important if
+it itself depends on another local header file.

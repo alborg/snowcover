@@ -1,0 +1,10 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: rsprod
+Description: The rsprod Library
+Version: @VERSION@
+Libs: -L${libdir} -lrsprod -llist @netcdf_LDFLAGS@ @netcdf_LIBS@
+Cflags: -I${includedir} @netcdf_CPPFLAGS@

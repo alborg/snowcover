@@ -1,0 +1,63 @@
+/*
+ * NAME:
+ * fmcol_config.h.in
+ *
+ * PURPOSE:
+ * Configuration file to be processed by autoconf scripts to specify which
+ * modules to use and which not to use.
+ *
+ * REQUIREMENTS:
+ *
+ * INPUT:
+ *
+ * OUTPUT:
+ *
+ * NOTES:
+ *
+ * BUGS:
+ *
+ * AUTHOR:
+ * Øystein Godøy, METNO/FOU, 12.10.2006 
+ *
+ * MODIFIED:
+ * Øystein Godøy, METNO/FOU, 30.04.2007 
+ * Øystein Godøy, METNO/FOU, 2013-04-18: Switched to new version of PPS
+ * libraries...
+ *
+ * ID:
+ * $Id$
+ */
+
+
+/*
+ * Standard elements
+ */
+#undef FMCOL_PACKAGE_NAME
+#undef FMCOL_PACKAGE_TARNAME
+#undef FMCOL_PACKAGE_VERSION
+#undef FMCOL_PACKAGE_STRING
+#undef FMCOL_PACKAGE_BUGREPORT
+
+#undef STDC_HEADERS
+#undef HAVE_SYS_TYPES
+#undef HAVE_SYS_STAT
+#undef HAVE_STDLIB_H
+#undef HAVE_STRING_H
+#undef HAVE_MEMORY_H
+#undef HAVE_STRINGS_H
+#undef HAVE_INTTYPES_H
+#undef HAVE_STDINT_H
+#undef HAVE_UNISTD_H
+#undef HAVE_MALLOC
+
+/*
+ * Features to include or disable
+ */
+#undef FMCOL_HAVE_LIBPROJ
+#undef FMCOL_HAVE_LIBFMUTIL
+#undef FMCOL_HAVE_LIBFMIO
+#undef FMCOL_HAVE_LIBOSIHDF5
+#undef FMCOL_HAVE_LIBSMHI_SAF
+#undef FMCOL_HAVE_LIBHLHDF
+#undef FMCOL_HAVE_LIBHDF5
+#undef FMCOL_HAVE_LIBTIFF
