@@ -73,11 +73,12 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     hid_t grp, attr_id;
     H5T_class_t datatype_class;
     H5T_sign_t datatype_sign;
-    hsize_t datatype_size, dataset_size;
+    hsize_t datatype_size, dataset_size, group_size;
     hsize_t dsd_d[2];
     herr_t status;
     fmbool isviirs = FMFALSE, isavhrr = FMFALSE;
     fmdataset fd;
+    H5G_info_t gr_slash_info;
 
     /*
      * Control error handling.
@@ -103,13 +104,29 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     	return(FM_IO_ERR);
     };
 
+//    grp = H5Gopen(file,"/");
+//    if(grp >= 0) { //If group open
+//    	status = H5Gget_info(grp, &gr_slash_info);
+//    	fprintf(stdout,"Number of groups in file: %llu \n",gr_slash_info.nlinks);
+//    }
+//    else {
+//    	fmerrmsg(where,"Could not decode group / in file");
+//    	return(FM_IO_ERR);
+//    }
+
+
     grp = H5Gopen(file,"how");
-    if(grp >= 0) { //If the file is a regular avhrr/viirs data file
+    if(grp >= 0) { //If the file is a regular avhrr/viirs data file or sunsat angle filel
 
     	if (fm_extracthow(grp, &(fd.h))) {
     		fmerrmsg(where,"Could not decode HOW group in file");
     		return(FM_IO_ERR);
     	}
+    	status = H5Gclose(grp);
+    	if (status < 0) {
+    		fmerrmsg(where,"Could not close group in %s", filename);
+    		return(FM_IO_ERR);
+    	};
 
     	grp = H5Gopen(file,"what");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHAT."); return(FM_IO_ERR);}
@@ -117,7 +134,11 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     		fmerrmsg(where,"Could not decode WHAT group in file");
     		return(FM_IO_ERR);
     	}
-
+    	status = H5Gclose(grp);
+    	if (status < 0) {
+    		fmerrmsg(where,"Could not close group in %s", filename);
+    		return(FM_IO_ERR);
+    	};
 
     	grp = H5Gopen(file,"where");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHERE."); return(FM_IO_ERR);}
@@ -125,6 +146,11 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     		fmerrmsg(where,"Could not decode WHERE group in file");
     		return(FM_IO_ERR);
     	}
+    	status = H5Gclose(grp);
+    	if (status < 0) {
+    		fmerrmsg(where,"Could not close group in %s", filename);
+    		return(FM_IO_ERR);
+    	};
 
     	if (fm_extractimagedata(file, &fd)) {
     		fmerrmsg(where,"Could not decode image data");
@@ -139,47 +165,74 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     else {
     	fmlogmsg(where,"Could not find group HOW. Not a regular data file.");
 
-    	char *keywords;
-    	hid_t str;
+    	hid_t ds_id; //Dataset id
+    	hid_t dataset_id;
+    	int *mydata;
+    	hsize_t dsize;
 
-    	fprintf(stdout,"Test for \n");
+    	hid_t str, dataspace, dataset, datatype;
+    	hsize_t dsd_d[2];
+    	int **intarray;
+    	int xsize, ysize;
 
-    	if (fm_create_hdf5_string(&str, 12)) {
-    	        fmerrmsg(where,"Could not create str");
-    	        return(FM_OTHER_ERR);
-    	    }
-    	    attr_id = H5Aopen_name(file,"keywords");
-    	    if (attr_id < 0) {
-    	        fmerrmsg(where,"Could not open attribute keywords.");
-    	        return(FM_IO_ERR);
-    	    }
-    	    status = H5Aread(attr_id,str,keywords);
-    	    fprintf(stdout,"keywords: %s %i\n",keywords,status);
-    	    if (status < 0) {
-    	        fmerrmsg(where,"Could not read attribute keywords.");
-    	        return(FM_IO_ERR);
-    	    }
-    	    status = H5Aclose(attr_id);
-    	    if (status < 0) {
-    	        fmerrmsg(where,
-    	                "Could not close attribute keywords, bailing out!");
-    	        return(FM_IO_ERR);
-    	    }
-    	    if (H5Tclose(str) < 0) {
-    	        fmerrmsg(where,"Could not release str");
-    	        return(FM_OTHER_ERR);
-    	    }
-
-//    	if (fmget_hdf5_string_att(file,"keywords", keywords)) {
-//    		fmerrmsg(where,"Could not retrieve keyword. Not a cloud type or cloud mask file.");
-//    		return(FM_IO_ERR);
-//    	}
-
-        fprintf(stdout,"Test etter %s\n",keywords);
-
-    	if (fmget_hdf5_int_att(file,"orbit_number", &(fd.h.orbit_no))) {
-    		fmerrmsg(where,"Could not retrieve orbit number");
+    	if (fm_extractppsregion(file,  &(fd.h))) {
+    		fmerrmsg(where,"Could not read region");
     		return(FM_IO_ERR);
+    	}
+
+
+    	dsd_d[0] = fd.h.xsize;
+    	dsd_d[1] = fd.h.ysize;
+
+    	dataset = H5Dopen(file,"fracofland");
+    	if(dataset >= 0) { //Physiography file
+    		fmlogmsg(where,"Physiography file detected.");
+    		dataspace = H5Screate_simple(2, dsd_d, NULL);
+    		if (dataspace < 0) {
+    			fmerrmsg(where,"Could not create dataspace");
+    			return(FM_IO_ERR);
+    		};
+    		if (fmalloc_int_2d(&(intarray),3200,7680)) {
+    			fmerrmsg(where,"Could not allocate data array");
+    			return(FM_MEMALL_ERR);
+    		}
+    		if (fmalloc_int_vector(&mydata, (3200*7680))) {
+    			fmerrmsg(where,"Could not allocate data array");
+    			return(FM_MEMALL_ERR);
+    		}
+
+    		status = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
+    		if (status < 0) {
+    			fmerrmsg(where,"Could not read data field");
+    			return(FM_IO_ERR);
+    		};
+    		status = H5Dclose(dataset);
+    		if (status < 0) {
+    			fmerrmsg(where,"Could not close dataset in HDF5 file");
+    			return(FM_IO_ERR);
+    		};
+    		status = H5Sclose(dataspace);
+    		if (status < 0) {
+    			fmerrmsg(where,"Could not close field dataspace in HDF5 file");
+    			return(FM_IO_ERR);
+    		};
+
+    		int j,k;
+    		for (j=0;j<3200; j++) {
+    			for (k=0;k<7680; k++) {
+    				intarray[j][k] = mydata[fmivec(k, j, 7680)];
+    				//if(intarray[j][k] >= 0) fprintf(stdout,"Data: %d\n", intarray[j][k]);
+    			}
+    		}
+    		if (fmfree_int_vector(mydata)) {
+    			fmerrmsg(where,"Could not free mydata");
+    			return(FM_MEMALL_ERR);
+    		}
+    		if (fmfree_int_2d(intarray,2300)) {
+    			fmerrmsg(where,"Could not free intarray");
+    			return(FM_MEMALL_ERR);
+    		}
+
     	}
 
 
@@ -191,10 +244,10 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
 int fm_readH5data(char *filename, fmdataset *d, fmbool headeronly) {
 
 
-    char *where="fm_readHLHDFdata";
-    hid_t file, dataset, datatype, dataspace, attr_space;
-    hid_t str17;
-    hid_t grp, attr_id;
+	char *where="fm_readHLHDFdata";
+	hid_t file, dataset, datatype, dataspace, attr_space;
+	hid_t str17;
+	hid_t grp, attr_id;
     H5T_class_t datatype_class;
     H5T_sign_t datatype_sign;
     hsize_t datatype_size, dataset_size;
@@ -608,9 +661,6 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     herr_t status;
     fmsec1970 timespan[2];
 
-    char *test_tz3 = "";
-//    test_tz3 = getenv("TZ");
-//        printf("TZ4: %s \n",test_tz3);
 
     /*
      * Decode platform information
@@ -640,10 +690,8 @@ int fm_extracthow(hid_t grp, fmheader *h) {
         fmerrmsg(where,"Could not release str");
         return(FM_OTHER_ERR);
     }
-    fprintf(stdout," Testing extracthow...1\n");
 
-    test_tz3 = getenv("TZ");
-    printf("TZ3: %s \n",test_tz3);
+
 
     /*
      * Decode instrument information
@@ -653,30 +701,22 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     	return(FM_OTHER_ERR);
     }
 
-    test_tz3 = getenv("TZ");
-    printf("TZ4: %s \n",test_tz3);
 
     attr_id = H5Aopen_name(grp,"instrument");
     if (attr_id < 0) {
     	fmerrmsg(where,"Could not open attribute instrument.");
     	return(FM_IO_ERR);
     }
-    test_tz3 = getenv("TZ");
-    printf("TZ5: %s \n",test_tz3);
 
     status = H5Aread(attr_id,str,h->sensor_name);
 
     fprintf(stdout,"sensor: %s %i\n",h->sensor_name,status);
 
-    test_tz3 = getenv("TZ");
-    printf("TZ6: %s \n",test_tz3);
 
     if (status < 0) {
     	fmerrmsg(where,"Could not read attribute instrument.");
     	return(FM_IO_ERR);
     }
-    test_tz3 = getenv("TZ");
-    printf("TZ7: %s \n",test_tz3);
     status = H5Aclose(attr_id);
     if (status < 0) {
     	fmerrmsg(where,
@@ -687,7 +727,6 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     	fmerrmsg(where,"Could not release str");
     	return(FM_OTHER_ERR);
     }
-    fprintf(stdout," Testing extracthow...2\n");
     /*
      * Decode orbit_no
      */
@@ -697,8 +736,7 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     	return(FM_IO_ERR);
     }
     status = H5Aread(attr_id,H5T_NATIVE_INT,&(h->orbit_no));
-    test_tz3 = getenv("TZ");
-    printf("TZ8: %s \n",test_tz3);
+
 
     if (status < 0) {
     	fmerrmsg(where,"Could not read attribute orbit_number.");
@@ -710,7 +748,6 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     			"Could not close attribute orbit_number, bailing out!");
     	return(FM_IO_ERR);
     }
-    fprintf(stdout," Testing extracthow...3\n");
 
 
 
@@ -749,19 +786,11 @@ int fm_extracthow(hid_t grp, fmheader *h) {
                 "Could not close attribute endepochs, bailing out!");
         return(FM_IO_ERR);
     }
-    fprintf(stdout," Testing extract_how...3.5 %li \n",timespan[0]);
-//    char *test_tz2;
-//    int check_tz = setenv("TZ","CET-1CEST",1);
-//    //tzset();
-//    test_tz2 = getenv("TZ");
-//    fprintf(stdout,"TZ: %s",test_tz2);
-
 
         if (tofmtime(timespan[0], &(h->timespan)[0])) {
         fmerrmsg(where,"Could decode timespan");
         return(FM_IO_ERR);
     }
-        fprintf(stdout," Testing extracthow...4\n");
             if (tofmtime(timespan[1], &(h->timespan)[1])) {
         fmerrmsg(where,"Could decode timespan");
         return(FM_IO_ERR);
@@ -950,6 +979,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
         /*
          * Read the actual data
          */
+
         dsd_d[0] = d->h.xsize;
         dsd_d[1] = d->h.ysize;
         dataspace = H5Screate_simple(2, dsd_d, NULL);
@@ -1358,9 +1388,7 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
     unsigned long long valtime;
     char **classnames;
 
-    char *test_tz3 = "";
-    test_tz3 = getenv("TZ");
-    printf("TZ1: %s \n",test_tz3);
+
 
     /*
      * Read orbit number
@@ -1370,8 +1398,7 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
     	return(FM_IO_ERR);
     }
     printf("orbit number: %d\n", d->h.orbit_no);
-    test_tz3 = getenv("TZ");
-    printf("TZ2: %s \n",test_tz3);
+
 
 
     /*
@@ -1381,8 +1408,6 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
     	fmerrmsg(where,"Could not retrieve description");
     	return(FM_IO_ERR);
     }
-    test_tz3 = getenv("TZ");
-    printf("TZ3: %s \n",test_tz3);
 
     printf("Description: %s\n",(d->h.product_description));
 
@@ -1411,14 +1436,11 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
      * Read region
      */
 
-    fprintf(stdout," Testing time\n");
     if (fm_extractppsregion(file_id, &(d->h))) {
         fmerrmsg(where,"Could not read region");
         return(FM_IO_ERR);
     }
-    test_tz3 = getenv("TZ");
-                printf("TZ1: %s \n",test_tz3);
-    fprintf(stdout," Testing time2\n");
+
 
     /*
      * Read actual data and attributes
@@ -1432,18 +1454,15 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
         fmerrmsg(where,"Could not allocate the necessary number of layers");
         return(FM_MEMALL_ERR);
     }
-    fprintf(stdout," Testing time3\n");
 
     for (i=0;i<5;i++) {
-        fprintf(stdout," Testing time4 %i\n",i);
+
         fmlogmsg(where,"Checking %s",datasets[i]);
-        fprintf(stdout," Testing time5 %i\n",i);
         dataset = H5Dopen(file_id,datasets[i]);
         if (dataset < 0) {
             fmlogmsg(where,"Could not find [%s] data ", datasets[i]);
             continue;
         };
-        fprintf(stdout," Testing time6 %i\n",i);
         if (i<3) {
             (d->d)[k].dtype = FMUCHAR;
             if (fmalloc_ubyte_2d(&(((d->d)[k]).bytearray),d->h.ysize,d->h.xsize)) {
@@ -1640,7 +1659,6 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
         fmerrmsg(where,"Could not generate str128");
         return(FM_OTHER_ERR);
     }
-    printf("Test1\n");
     datatype = H5Tcreate(H5T_COMPOUND, sizeof(ppsregion));
     if (datatype < 0) {
         fmerrmsg(where,"Could not define compound datatype for header");
@@ -1727,9 +1745,9 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
     /*
      * Read dataset
      */
-    printf("Test2\n");
-    //fmlogmsg(where,"Reading region");
-    printf("Test3\n");
+
+    fmlogmsg(where,"Reading region");
+
     dataset = H5Dopen(file_id,"region");
     if (dataset < 0) {
         fmerrmsg(where,"Could not open dataset region");
