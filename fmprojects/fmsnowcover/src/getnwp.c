@@ -35,10 +35,10 @@
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, met.no/FOU, 18.10.2004 
+ * ï¿½ystein Godï¿½y, met.no/FOU, 18.10.2004 
  *
  * MODIFIED:
- * Øystein Godøy, METNO/FOU, 27.03.2009: Take input path, filename
+ * ï¿½ystein Godï¿½y, METNO/FOU, 27.03.2009: Take input path, filename
  * wildcards and number of wildcards to use in addition to the usual...
  *
  * CVS_ID:
@@ -107,27 +107,32 @@ int nwpice_read(char *fpath, char **filenames, int nrf, int nruns, fmtime
      * must be allocated contigous.
      */
     if (strstr(fpath,"/opdata")) {
-	len1 =  strlen(fpath)+1+strlen(filenames[0])+6+1;
+    	len1 =  strlen(fpath)+1+strlen(filenames[0])+6+1;
     } else if (strstr(fpath,"/starc")) {
-	len1 =  strlen(fpath)+1+11+strlen(filenames[0])+6+1+9;
+    	len1 =  strlen(fpath)+1+11+strlen(filenames[0])+6+1+9;
+    } else if (strstr(fpath,"/disk1")) {
+    	len1 =  strlen(fpath)+1+strlen(filenames[0])+5+1;
     } else {
-	fmerrmsg(where,"Could not determine source for NWP data.");
-	return(FM_IO_ERR);
+    	fmerrmsg(where,"Could not determine source for NWP data.");
+    	return(FM_IO_ERR);
     }
     if (fmalloc_byte_2d_contiguous(&fnsf,nruns,len1)){
-	fmerrmsg(where,"Could not allocate fnsf");
-	exit(FM_MEMALL_ERR);
+    	fmerrmsg(where,"Could not allocate fnsf");
+    	exit(FM_MEMALL_ERR);
     }
     for (i=0;i<nruns;i++) {
-	if (strstr(fpath,"/opdata")) {
-	    sprintf(fnsf[i],"%s/%s%02d.dat",fpath,filenames[0],(i*6));
-	} else if (strstr(fpath,"/starc")) {
-	    sprintf(fnsf[i],"%s/%4d/%02d/%02d/%s%02d.dat_%4d%02d%02d",
-		    fpath,
-		    reqtime.fm_year, reqtime.fm_mon,reqtime.fm_mday,
-		    filenames[0],(i*6),
-		    reqtime.fm_year, reqtime.fm_mon,reqtime.fm_mday);
-	}
+    	if (strstr(fpath,"/opdata")) {
+    		sprintf(fnsf[i],"%s/%s%02d.dat",fpath,filenames[0],(i*6));
+    	} else if (strstr(fpath,"/starc")) {
+    		sprintf(fnsf[i],"%s/%4d/%02d/%02d/%s%02d.dat_%4d%02d%02d",
+    				fpath,
+    				reqtime.fm_year, reqtime.fm_mon,reqtime.fm_mday,
+    				filenames[0],(i*6),
+    				reqtime.fm_year, reqtime.fm_mon,reqtime.fm_mday);
+    	}
+    	else if (strstr(fpath,"/disk1")) {
+    		sprintf(fnsf[i],"%s/%s%02d.dat",fpath,filenames[0],(i*6));
+    	}
     }
     fmlogmsg(where,"Collecting HIRLAM data from %s",fpath);
 
@@ -196,7 +201,7 @@ int nwpice_read(char *fpath, char **filenames, int nrf, int nruns, fmtime
     printf(" Forecast length: %d\n", itime[4]);
     printf(" Status of 'getfield':");
     printf(" ierror=%d iundef=%d\n\n", ierror, iundef);
-
+    //printf("Files: %s %s %s %s\n", fnsf[0], fnsf[1], fnsf[2], fnsf[3]);
     /*
      * Transfer the time information to the nwpice structure
      */
@@ -319,7 +324,7 @@ int nwpice_read(char *fpath, char **filenames, int nrf, int nruns, fmtime
  * BUGS:
  *
  * AUTHOR:
- * Øystein Godøy, met.no/FOU, 21.10.2004 
+ * ï¿½ystein Godï¿½y, met.no/FOU, 21.10.2004 
  *
  * MODIFIED:
  * NA
@@ -362,7 +367,7 @@ int nwpice_init(nwpice *nwp) {
  * BUGS:
  *
  * AUTHOR:
- * Øystein Godøy, met.no/FOU, 21.10.2004 
+ * ï¿½ystein Godï¿½y, met.no/FOU, 21.10.2004 
  *
  * MODIFIED:
  * NA

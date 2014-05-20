@@ -26,16 +26,16 @@
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, DNMI/FoU, 26/11/2000.
+ * ï¿½ystein Godï¿½y, DNMI/FoU, 26/11/2000.
  *
  * MODIFIED:
- * Øystein Godøy, met.no/FOU, 27.09.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 27.09.2004
  * Modification for full Bayes approach started...
- * Øystein Godøy, met.no/FOU, 03.11.2004: See pix_proc.c
- * Øystein Godøy, METNO/FOU, 30.10.2006: See pap_avhrrice.c
- * Øystein Godøy, METNO/FOU, 11.01.2007: Changed some names, added missing
+ * ï¿½ystein Godï¿½y, met.no/FOU, 03.11.2004: See pix_proc.c
+ * ï¿½ystein Godï¿½y, METNO/FOU, 30.10.2006: See pap_avhrrice.c
+ * ï¿½ystein Godï¿½y, METNO/FOU, 11.01.2007: Changed some names, added missing
  * 3A code
- * Øystein Godøy, METNO/FOU, 02.04.2007: Added 3B support.
+ * ï¿½ystein Godï¿½y, METNO/FOU, 02.04.2007: Added 3B support.
  * Mari Anne Killie, METNO/FOU, 31.01.2008: See avhrrice_pap.c
  * Mari Anne Killie, METNO/FOU, 26.08.2008: Added A3b in struct
  * pinpstr and edited for r3a1/r3b1 in struct surfstr
@@ -193,6 +193,10 @@ int process_pixels4ice(fmio_img img,
     unsigned char *cmask[], unsigned char *lmask, nwpice nwp, 
     datafield *probs, unsigned char *class, unsigned char *cat,
     short algo, statcoeffstr cof);
+
+int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
+       unsigned char **lmask, nwpice nwp, datafield *probs,
+       unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof);
 
 void moment(float data[], int n, float *ave, float *adev, float *sdev,
     float *var, float *skew, float *curt);

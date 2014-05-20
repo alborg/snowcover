@@ -61,7 +61,7 @@
 #include <fmaccusnow.h>
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
-int main(int argc, char *argv[]) {
+int main2(int argc, char *argv[]) {
 
     char *where="fmsnowcover";
     char what[FMSNOWCOVER_MSGLENGTH];
@@ -280,8 +280,10 @@ int main(int argc, char *argv[]) {
     		fprintf(stderr," By: %f %f\n", lm.h.By, img.By);
     		fprintf(stderr," iw: %d %d\n", lm.h.iw, img.iw);
     		fprintf(stderr," ih: %d %d\n", lm.h.ih, img.ih);
+
     		return(FM_IO_ERR);
     	}
+
     }
     else {
     	fmlogmsg(where,"No landmask is available, continuing without.");

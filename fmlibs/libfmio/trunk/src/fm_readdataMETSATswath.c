@@ -63,7 +63,7 @@ typedef struct {
 //}
 
 
-int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
+int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
     char *where="fm_readdataMETSATswath",mymsg[255];
     char mystring[FMSTRING128];
@@ -77,7 +77,7 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     hsize_t dsd_d[2];
     herr_t status;
     fmbool isviirs = FMFALSE, isavhrr = FMFALSE;
-    fmdataset fd;
+    //fmdataset fd;
     H5G_info_t gr_slash_info;
 
     /*
@@ -104,21 +104,11 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     	return(FM_IO_ERR);
     };
 
-//    grp = H5Gopen(file,"/");
-//    if(grp >= 0) { //If group open
-//    	status = H5Gget_info(grp, &gr_slash_info);
-//    	fprintf(stdout,"Number of groups in file: %llu \n",gr_slash_info.nlinks);
-//    }
-//    else {
-//    	fmerrmsg(where,"Could not decode group / in file");
-//    	return(FM_IO_ERR);
-//    }
-
 
     grp = H5Gopen(file,"how");
     if(grp >= 0) { //If the file is a regular avhrr/viirs data file or sunsat angle filel
 
-    	if (fm_extracthow(grp, &(fd.h))) {
+    	if (fm_extracthow(grp, &(fd->h))) {
     		fmerrmsg(where,"Could not decode HOW group in file");
     		return(FM_IO_ERR);
     	}
@@ -130,7 +120,7 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
 
     	grp = H5Gopen(file,"what");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHAT."); return(FM_IO_ERR);}
-    	if (fm_extractwhat(grp, &(fd.h))) {
+    	if (fm_extractwhat(grp, &(fd->h))) {
     		fmerrmsg(where,"Could not decode WHAT group in file");
     		return(FM_IO_ERR);
     	}
@@ -142,7 +132,7 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
 
     	grp = H5Gopen(file,"where");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHERE."); return(FM_IO_ERR);}
-    	if (fm_extractwhere(grp, &(fd.h))) {
+    	if (fm_extractwhere(grp, &(fd->h))) {
     		fmerrmsg(where,"Could not decode WHERE group in file");
     		return(FM_IO_ERR);
     	}
@@ -152,14 +142,16 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     		return(FM_IO_ERR);
     	};
 
-    	if (fm_extractimagedata(file, &fd)) {
+    	if (fm_extractimagedata(file, fd)) {
     		fmerrmsg(where,"Could not decode image data");
     		return(FM_IO_ERR);
     	}
 
+
+
     	//Check instrument
-    	if (strstr(fd.h.platform_name,"noaa") || strstr(fd.h.platform_name,"npp")) {
-    		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd.h.platform_name, fd.h.sensor_name);
+    	if (strstr(fd->h.platform_name,"noaa") || strstr(fd->h.platform_name,"npp")) {
+    		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd->h.platform_name, fd->h.sensor_name);
     	}    else { fmerrmsg(where, "Do not recognize instrument, bailing out!"); return(FM_OTHER_ERR); }
     }
     else {
@@ -175,14 +167,15 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     	int **intarray;
     	int xsize, ysize;
 
-    	if (fm_extractppsregion(file,  &(fd.h))) {
+    	if (fm_extractppsregion(file,  &(fd->h))) {
     		fmerrmsg(where,"Could not read region");
     		return(FM_IO_ERR);
     	}
 
 
-    	dsd_d[0] = fd.h.xsize;
-    	dsd_d[1] = fd.h.ysize;
+    	dsd_d[0] = fd->h.xsize;
+    	dsd_d[1] = fd->h.ysize;
+    	fd->h.layers = 1;
 
     	dataset = H5Dopen(file,"fracofland");
     	if(dataset >= 0) { //Physiography file
@@ -192,11 +185,15 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     			fmerrmsg(where,"Could not create dataspace");
     			return(FM_IO_ERR);
     		};
-    		if (fmalloc_int_2d(&(intarray),3200,7680)) {
+    		if (allocate_fmdatafield(&(fd->d),fd->h.layers)) {
+    			fmerrmsg(where,"Could not allocate the necessary number of layers");
+    			return(FM_MEMALL_ERR);
+    		}
+    		if (fmalloc_int_2d(&((fd->d)[0].intarray),fd->h.ysize,fd->h.xsize)) {
     			fmerrmsg(where,"Could not allocate data array");
     			return(FM_MEMALL_ERR);
     		}
-    		if (fmalloc_int_vector(&mydata, (3200*7680))) {
+    		if (fmalloc_int_vector(&mydata, (fd->h.xsize*fd->h.ysize))) {
     			fmerrmsg(where,"Could not allocate data array");
     			return(FM_MEMALL_ERR);
     		}
@@ -218,20 +215,19 @@ int fm_readMETSATdata_swath(char *filename, fmio_img *h) {
     		};
 
     		int j,k;
-    		for (j=0;j<3200; j++) {
-    			for (k=0;k<7680; k++) {
-    				intarray[j][k] = mydata[fmivec(k, j, 7680)];
-    				//if(intarray[j][k] >= 0) fprintf(stdout,"Data: %d\n", intarray[j][k]);
+    		for (j=0;j<fd->h.xsize; j++) {
+    			for (k=0;k<fd->h.ysize; k++) {
+    				(fd->d)[0].intarray[j][k] = mydata[fmivec(k, j, fd->h.ysize)];
+
     			}
     		}
     		if (fmfree_int_vector(mydata)) {
     			fmerrmsg(where,"Could not free mydata");
     			return(FM_MEMALL_ERR);
     		}
-    		if (fmfree_int_2d(intarray,2300)) {
-    			fmerrmsg(where,"Could not free intarray");
-    			return(FM_MEMALL_ERR);
-    		}
+
+
+
 
     	}
 
@@ -1648,6 +1644,7 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
     herr_t status;
     ppsregion mydata;
 
+
     /*
      * Create compound data type
      */
@@ -1742,6 +1739,7 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
         return(FM_OTHER_ERR);;
     }
 
+
     /*
      * Read dataset
      */
@@ -1791,8 +1789,10 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
     printf("\tpcs_id: %s\n", mydata.pcs_id);
     printf("\tpcs_def: %s\n", mydata.pcs_def);
 
+
     h->xsize = mydata.xsize;
     h->ysize = mydata.ysize;
+
 
     return(FM_OK);
 }
