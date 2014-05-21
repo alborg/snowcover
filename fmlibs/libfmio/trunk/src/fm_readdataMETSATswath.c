@@ -69,7 +69,6 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     char mystring[FMSTRING128];
 
     hid_t file, dataset, datatype, dataspace, attr_space;
-    hid_t str17;
     hid_t grp, attr_id;
     H5T_class_t datatype_class;
     H5T_sign_t datatype_sign;
@@ -85,19 +84,12 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
      */
     H5Eset_auto(NULL,NULL);
 
-    /*
-     * Create string data types.
-     */
-    if (fm_create_hdf5_string(&str17,17)) {
-    	fmerrmsg(where,"Could not create HDF5 string.");
-    	return(FM_OTHER_ERR);
-    }
-
 
     /*
      * Open HDF file and check contents. While doing this we also fill the
      * contents of the header if the required elements are found.
      */
+
     file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
     if (file < 0) {
     	fmerrmsg(where,"Could not open %s", filename);
@@ -118,6 +110,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
+
     	grp = H5Gopen(file,"what");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHAT."); return(FM_IO_ERR);}
     	if (fm_extractwhat(grp, &(fd->h))) {
@@ -129,6 +122,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		fmerrmsg(where,"Could not close group in %s", filename);
     		return(FM_IO_ERR);
     	};
+
 
     	grp = H5Gopen(file,"where");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHERE."); return(FM_IO_ERR);}
@@ -147,12 +141,11 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	}
 
-
-
     	//Check instrument
     	if (strstr(fd->h.platform_name,"noaa") || strstr(fd->h.platform_name,"npp")) {
     		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd->h.platform_name, fd->h.sensor_name);
     	}    else { fmerrmsg(where, "Do not recognize instrument, bailing out!"); return(FM_OTHER_ERR); }
+
     }
     else {
     	fmlogmsg(where,"Could not find group HOW. Not a regular data file.");
@@ -180,6 +173,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	dataset = H5Dopen(file,"fracofland");
     	if(dataset >= 0) { //Physiography file
     		fmlogmsg(where,"Physiography file detected.");
+
     		dataspace = H5Screate_simple(2, dsd_d, NULL);
     		if (dataspace < 0) {
     			fmerrmsg(where,"Could not create dataspace");
@@ -198,6 +192,8 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     			return(FM_MEMALL_ERR);
     		}
 
+    		fd->d[0].dtype = FMINT;
+
     		status = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
     		if (status < 0) {
     			fmerrmsg(where,"Could not read data field");
@@ -215,24 +211,26 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		};
 
     		int j,k;
-    		for (j=0;j<fd->h.xsize; j++) {
-    			for (k=0;k<fd->h.ysize; k++) {
-    				(fd->d)[0].intarray[j][k] = mydata[fmivec(k, j, fd->h.ysize)];
-
+    		for (j=0;j<fd->h.ysize; j++) {
+    			for (k=0;k<fd->h.xsize; k++) {
+    				(fd->d)[0].intarray[j][k] = mydata[fmivec(k, j, fd->h.xsize)];
     			}
     		}
+
     		if (fmfree_int_vector(mydata)) {
     			fmerrmsg(where,"Could not free mydata");
     			return(FM_MEMALL_ERR);
     		}
 
-
-
-
     	}
 
-
     }
+
+    status = H5Fclose(file);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not close file %s", filename);
+    	return(FM_IO_ERR);
+    };
 
     return(0);
 }
@@ -723,6 +721,9 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     	fmerrmsg(where,"Could not release str");
     	return(FM_OTHER_ERR);
     }
+
+
+
     /*
      * Decode orbit_no
      */
@@ -793,6 +794,7 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     }
 
 
+
     return(FM_OK);
 }
 
@@ -825,6 +827,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
     herr_t status;
     int i, j, k, *mydata;
 
+
     if (fmalloc_char_vector(&groupname,25)) {
         fmerrmsg(where,"Could not allocate groupname");
         return(FM_MEMALL_ERR);
@@ -838,6 +841,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
         return(FM_MEMALL_ERR);
     }
 
+
     /*
      * Allocate the number of layers (fmdatafields) to include
      * Add two extra fields for geographical positions, remember to reduce
@@ -849,8 +853,10 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
         return(FM_MEMALL_ERR);
     }
 
+
     for (i=0;i<d->h.layers-2;i++) {
         sprintf(groupname,"image%d", i+1);
+        //fprintf(stdout,"%d %s\n", i+1, groupname);
         /*
          * Open image group and read attribute description
          */
@@ -926,6 +932,8 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
                     "Could not close attribute nodata, bailing out!");
             return(FM_IO_ERR);
         }
+
+
         ((d->d)[i]).packed = FMTRUE;
         ((d->d)[i]).scalefactor.nslopes = 1;
         ((d->d)[i]).scalefactor.slope = malloc(sizeof(fmslope)*1);
@@ -975,7 +983,6 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
         /*
          * Read the actual data
          */
-
         dsd_d[0] = d->h.xsize;
         dsd_d[1] = d->h.ysize;
         dataspace = H5Screate_simple(2, dsd_d, NULL);
@@ -983,11 +990,14 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
             fmerrmsg(where,"Could not create dataspace");
             return(FM_IO_ERR);
         };
+
         dataset = H5Dopen(grp_id,"data");
+
         if (dataset < 0) {
             fmerrmsg(where,"Could not open dataset data [%d]", dataset);
             return(FM_IO_ERR);
         };
+
         (d->d)[i].dtype = FMINT;
         if (fmalloc_int_2d(&(((d->d)[i]).intarray),d->h.ysize,d->h.xsize)) {
             fmerrmsg(where,"Could not allocate data array");
@@ -997,13 +1007,16 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
             fmerrmsg(where,"Could not allocate data array");
             return(FM_MEMALL_ERR);
         }
+
         status = H5Dread(dataset,
                 H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
                 mydata);
+
         if (status < 0) {
             fmerrmsg(where,"Could not read data field");
             return(FM_IO_ERR);
         };
+
         status = H5Dclose(dataset);
         if (status < 0) {
             fmerrmsg(where,"Could not close dataset in HDF5 file");
@@ -1020,6 +1033,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
                 ((d->d)[i]).intarray[j][k] = mydata[fmivec(k, j, d->h.xsize)];
             }
         }
+
         if (fmfree_int_vector(mydata)) {
             fmerrmsg(where,"Could not free mydata");
             return(FM_MEMALL_ERR);
@@ -1782,12 +1796,12 @@ int fm_extractppsregion(hid_t file_id, fmheader *h) {
     printf("Region dataset:\n");
     printf("\txsize: %d\n", mydata.xsize);
     printf("\tysize: %d\n", mydata.ysize);
-    printf("\txscale: %f\n", mydata.xscale);
-    printf("\tyscale: %f\n", mydata.yscale);
-    printf("\tid: %s\n", mydata.id);
-    printf("\tname: %s\n", mydata.name);
-    printf("\tpcs_id: %s\n", mydata.pcs_id);
-    printf("\tpcs_def: %s\n", mydata.pcs_def);
+//    printf("\txscale: %f\n", mydata.xscale);
+//    printf("\tyscale: %f\n", mydata.yscale);
+//    printf("\tid: %s\n", mydata.id);
+//    printf("\tname: %s\n", mydata.name);
+//    printf("\tpcs_id: %s\n", mydata.pcs_id);
+//    printf("\tpcs_def: %s\n", mydata.pcs_def);
 
 
     h->xsize = mydata.xsize;

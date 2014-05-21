@@ -62,8 +62,9 @@
  * $Id: fmsnowcover.c,v 1.12 2010-07-02 15:07:18 mariak Exp $
  */
 
-//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i S_NWC_viirs_npp_09364_20130818T1055446Z_20130818T1109575Z.h5 -l S_NWC_physiography_npp_09364_20130818T1055446Z_20130818T1109575Z.h5
-//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa19_20140520_0644_27205_satproj_00000_02106_avhrr.h5 -l noaa19_20140520_0644_27205_satproj_00000_02106_physiography.h5
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i S_NWC_viirs_npp_09364_20130818T1055446Z_20130818T1109575Z.h5 -l S_NWC_physiography_npp_09364_20130818T1055446Z_20130818T1109575Z.h5 -s S_NWC_sunsatangles_npp_09364_20130818T1055446Z_20130818T1109575Z.h5
+
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa19_20140520_0644_27205_satproj_00000_02106_avhrr.h5 -l noaa19_20140520_0644_27205_satproj_00000_02106_physiography.h5 -s noaa19_20140520_0644_27205_satproj_00000_02106_sunsatangles.h5
 
 
 //Phys file name: S_NWC_physiography_npp_09364_20130818T1055446Z_20130818T1109575Z.h5
@@ -79,17 +80,17 @@ int main(int argc, char *argv[]) {
     char what[FMSNOWCOVER_MSGLENGTH];
     extern char *optarg;
     int ret;
-    short errflg = 0, iflg = 0, cflg = 0, lflg = 0;
+    short errflg = 0, iflg = 0, cflg = 0, lflg = 0, sflg = 0;
     short status;
     unsigned int size;
-    char fname[100],lname[120],datestr[25];
+    char fname[100],lname[120],sname[120],datestr[25];
     char pname[4];
     char *lmaskf, *opfn1, *opfn2, *opfn3;
-    char *infile, *cfgfile, *coffile;
+    char *infile, *cfgfile, *coffile, *sunzenf;
     char *fnwc[3]={"h12sf","h12pl","h12ml"};
     unsigned char *classed, *cat;
     cfgstruct cfg;
-    FILE *lmask_located; /*Can be removed later*/
+    FILE *lmask_located, *sunzen_located; /*Can be removed later*/
     fmio_mihead iinfo = {  //fmio.h
 	"Not known",
 	00, 00, 00, 00, 0000, -9,
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
 	0, 0, 0, 0., 0., -999., -999.
     };
     //fmio_img img;   //fmio.h
-    fmdataset img, lm;  //fmutil.h
+    fmdataset img, lm, sz;  //fmutil.h
     fmucsref refucs;  //fmutil.h
     fmtime reftime;  //fmtime.h
     nwpice nwp; //getnwp.h
@@ -118,9 +119,9 @@ int main(int argc, char *argv[]) {
 
 
     /*
-     * Interpret command line arguments. c=config file, i=input data file, l=land mask input file
+     * Interpret command line arguments. c=config file, i=input data file, l=land mask input file, s=sun angle file
      */
-     while ((ret = getopt(argc, argv, "c:i:l:")) != EOF) {
+     while ((ret = getopt(argc, argv, "c:i:l:s:")) != EOF) {
     	 switch (ret) {
     	 case 'c':
     		 cfgfile = (char *) malloc(FILELEN);
@@ -139,6 +140,10 @@ int main(int argc, char *argv[]) {
     		 if (!strcpy(lname, optarg)) exit(FM_OK);
     		 lflg++;
     		 break;
+    	 case 's':
+    		 if (!strcpy(sname, optarg)) exit(FM_OK);
+    		 sflg++;
+    		 break;
     	 default:
     		 usage();
     		 break;
@@ -147,7 +152,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (!iflg || !cflg || !lflg) errflg++;
+    if (!iflg || !cflg || !lflg || !sflg) errflg++;
     if (errflg) usage();
 
     fprintf(stdout,"\n");
@@ -159,7 +164,7 @@ int main(int argc, char *argv[]) {
     /*
      * Decode configuration file.
      */
-    if (decode_cfg(cfgfile,&cfg) != 0) {
+    if (decode_cfg_new(cfgfile,&cfg) != 0) {
 	fmerrmsg(where,"Could not decode configuration");
 	exit(FM_IO_ERR);
     }
@@ -187,6 +192,16 @@ int main(int argc, char *argv[]) {
     }
     sprintf(lmaskf,"%s/%s",cfg.lmpath,lname);
 
+    //Sun zenith angle file
+        sunzenf = (char *) malloc(FILELEN);
+        if (!lmaskf) {
+        	fprintf(stderr,"%s\n"," Trouble processing:");
+        	fprintf(stderr,"%s\n",infile);
+        	fmerrmsg(where,"Could not allocate memory for sunzenf");
+        	exit(FM_MEMALL_ERR);
+        }
+        sprintf(sunzenf,"%s/%s",cfg.szpath,sname);
+
 
     /*setting path to file containing probability coeffs*/
     coffile = (char *) malloc(FILELEN);
@@ -205,28 +220,24 @@ int main(int argc, char *argv[]) {
     fprintf(stdout," Reading input data...\n");
     fprintf(stdout," %s\n", fname);
 
-//    fm_init_fmio_img(&img);
-//    if (fm_readdata(infile, &img)) {
-//    	fmerrmsg(where,"Could not open file...\n");
-//    	exit(FM_IO_ERR);
-//    }
 
     if (init_fmdataset(&img)) {
     	fmerrmsg(where,"Could not initialize fmdataset");
     	exit(FM_OTHER_ERR);
 
     }
+
     if(fm_readMETSATdata_swath(infile, &img)){
     	fmerrmsg(where,"Could not open file...\n");
     	exit(FM_IO_ERR);
     }
+
 
     /*
      * Check the number of valid pixels
      *
      * NB!!!!!!!!!! Checking just one channel at the moment!!!!!!!!!!
      */
-
     size = img.h.xsize*img.h.ysize;
 
     int valpix = 0;
@@ -239,7 +250,7 @@ int main(int argc, char *argv[]) {
     }
     float cover = valpix*100./size;
     printf(" Image cover: %.2f\n",cover);
-    if ((cover < 40. && (strstr(fname,"NoA") == NULL))) {
+    if ((cover < 20. && (strstr(fname,"NoA") == NULL))) {
     	fmlogmsg(where,
     			"The percentage coverage (%.0f%) of this scene is too small for further processing.",cover);
     	exit(FM_OK);
@@ -273,8 +284,8 @@ int main(int argc, char *argv[]) {
     refucs.Ay = (double) img.h.ucs.Ay;
     refucs.Bx = (double) img.h.ucs.Bx;
     refucs.By = (double) img.h.ucs.By;
-    refucs.iw =  img.h.ucs.iw;
-    refucs.ih = img.h.ucs.ih;
+    refucs.iw =  img.h.xsize;
+    refucs.ih = img.h.ysize;
 
 
     /*
@@ -285,15 +296,14 @@ int main(int argc, char *argv[]) {
 
     nwpice_init(&nwp);
 
-#ifdef FMSNOWCOVER_HAVE_LIBUSENWP
-    if (nwpice_read(cfg.nwppath,fnwc,3,4,reftime,refucs,&nwp)) {
-    	fmerrmsg(where,"No NWP data available.");
-    	free_fmdataset(&img);
-    	nwpice_free(&nwp);
-    	exit(FM_IO_ERR);
-    }
-#endif
-
+//#ifdef FMSNOWCOVER_HAVE_LIBUSENWP
+//    if (nwpice_read(cfg.nwppath,fnwc,3,4,reftime,refucs,&nwp)) {
+//    	fmerrmsg(where,"No NWP data available.");
+//    	free_fmdataset(&img);
+//    	nwpice_free(&nwp);
+//    	exit(FM_IO_ERR);
+//    }
+//#endif
 
 
     /*
@@ -314,10 +324,30 @@ int main(int argc, char *argv[]) {
     		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read land/sea mask");
     		return(FM_IO_ERR);
     	}
+
+    	fprintf(stdout,"Finished reading land/sea mask \n");
     }
     else {
     	fmlogmsg(where,"No landmask is available, continuing without.");
     }
+
+
+
+    if (sunzen_located = fopen(sunzenf,"r")) {
+        	fprintf(stdout," Reading sun zenith angle: %s\n", sunzenf);
+        	status = fm_readMETSATdata_swath(sunzenf, &sz);
+        	fclose(sunzen_located);
+        	if (status != 0) {
+        		fprintf(stderr,"%s\n"," Trouble processing:");
+        		fprintf(stderr,"%s\n",sunzenf);
+        		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read sun zenith angle");
+        		return(FM_IO_ERR);
+        	}
+        }
+        else {
+        	fmerrmsg(where,"No sun zenith angle file available!\n");
+        	exit(FM_IO_ERR);
+        }
 
 
 
@@ -341,8 +371,8 @@ int main(int argc, char *argv[]) {
     init_osihdf(&ice);
     sprintf(ice.h.source, "%s", img.h.platform_name);
     sprintf(ice.h.product, "%s", where);
-    ice.h.iw = img.h.ucs.iw;
-    ice.h.ih = img.h.ucs.ih;
+    ice.h.iw = img.h.xsize;
+    ice.h.ih = img.h.ysize;
     ice.h.z = FMSNOWCOVER_OLEVELS;
     ice.h.Ax = img.h.ucs.Ax;
     ice.h.Ay = img.h.ucs.Ay;
@@ -376,11 +406,11 @@ int main(int argc, char *argv[]) {
     fmlogmsg(where,"Estimating ice probability");
 
     if (lm.d == NULL) {
-      status = process_pixels4ice_new(img, NULL, NULL, nwp,
+      status = process_pixels4ice_new(img, NULL, NULL, nwp, sz,
 				  ice.d, classed, cat, 2, coeffs);
     } else {
-      status = process_pixels4ice_new(img, NULL, (unsigned char **)(lm.d->intarray),
-				  nwp, ice.d, classed, cat, 2, coeffs);
+      status = process_pixels4ice_new(img, NULL, (unsigned char **)(lm.d->intarray), nwp, sz,
+				  ice.d, classed, cat, 2, coeffs);
     }
 
     if ((status) && (status != 10)) {
@@ -488,4 +518,131 @@ int main(int argc, char *argv[]) {
 
     exit(FM_OK);
 }
+
+
+
+/*
+ * NAME:
+ * decode_cfg
+ *
+ * PURPOSE:
+ * To decode configuration file.
+ */
+
+int decode_cfg_new(char cfgfile[],cfgstruct *cfg) {
+    FILE *fp;
+    char *where="decode_cfg";
+    char *dummy,*pt;
+    char *token=" ";
+
+    dummy = (char *) malloc(FILELEN*sizeof(char));
+    if (!dummy) {
+	fmerrmsg(where,"%s","Could not allocate memory");
+	return(FM_MEMALL_ERR);
+    }
+
+    fp = fopen(cfgfile,"r");
+    if (!fp) {
+	fmerrmsg(where,"%s","Could not open config file.");
+	return(FM_IO_ERR);
+    }
+
+    while (fgets(dummy,FILELEN,fp) != NULL) {
+	if (strncmp(dummy,"#",1) == 0) continue;
+	if (strlen(dummy) > (FILELEN-50)) {
+	    fmerrmsg(where,"%s",
+		    "Input string larger than FILELEN");
+	    free(dummy);
+	    return(FM_IO_ERR);
+	}
+
+	pt = strtok(dummy,token);
+
+	if (!pt) {
+	    fmerrmsg(where,"%s","strtok trouble.");
+	    free(dummy);
+	    return(FM_IO_ERR);
+	}
+	if (strncmp(pt,"IMGPATH",7) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for imgpath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->imgpath,"%s",pt);
+	} else if (strncmp(pt,"NWPPATH",7) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for nwppath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->nwppath,"%s",pt);
+	} else if (strncmp(pt,"CMPATH",6) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for cmpath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->cmpath,"%s",pt);
+	} else if (strncmp(pt,"LMPATH",6) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for lmpath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->lmpath,"%s",pt);
+	} else if (strncmp(pt,"SZPATH",6) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for szpath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->szpath,"%s",pt);
+	}else if (strncmp(pt,"PRODUCTPATH",11) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for productpath.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->productpath,"%s",pt);
+	} else if (strncmp(pt,"PROBTABNAME",11) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for probtabname.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->probtabname,"%s",pt);
+	} else if (strncmp(pt,"INDEXFILE",9) == 0) {
+	    pt = strtok(NULL,token);
+	    if (!pt) {
+		fmerrmsg(where,"%s","strtok trouble for indexfile.");
+		free(dummy);
+		return(FM_IO_ERR);
+	    }
+	    fmremovenewline(pt);
+	    sprintf(cfg->indexfile,"%s",pt);
+	}
+    }
+
+    fclose(fp);
+
+    free(dummy);
+
+    return(FM_OK);
+}
+
 

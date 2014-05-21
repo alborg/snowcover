@@ -100,6 +100,7 @@ typedef struct {
     char nwppath[FILELEN];
     char cmpath[FILELEN];
     char lmpath[FILELEN];
+    char szpath[FILELEN];
     char productpath[FILELEN];
     char probtabname[FILELEN];
     char indexfile[FILELEN];
@@ -138,7 +139,7 @@ typedef struct {
 } pinpstr;
 
 /*
- * Data structure to hold probaility estimates given miclpa
+ * Data structure to hold probability estimates given miclpa
  */
 typedef struct {
     double pice;
@@ -188,6 +189,7 @@ typedef struct {
 void usage(void);
 
 int decode_cfg(char cfgfile[],cfgstruct *cfg);
+int decode_cfg_new(char cfgfile[],cfgstruct *cfg);
 
 int process_pixels4ice(fmio_img img, 
     unsigned char *cmask[], unsigned char *lmask, nwpice nwp, 
@@ -195,7 +197,7 @@ int process_pixels4ice(fmio_img img,
     short algo, statcoeffstr cof);
 
 int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
-       unsigned char **lmask, nwpice nwp, datafield *probs,
+       unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof);
 
 void moment(float data[], int n, float *ave, float *adev, float *sdev,

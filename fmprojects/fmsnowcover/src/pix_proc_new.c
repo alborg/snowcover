@@ -76,12 +76,12 @@
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
 int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
-       unsigned char **lmask, nwpice nwp, datafield *probs,
+       unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof) {
 
     char *where="process_pixels4ice";
     char what[FMSNOWCOVER_MSGLENGTH];
-    int i, j, size;
+    int i, j, size, im;
     int xc, yc;
     /* double x; */
     pinpstr cpar;
@@ -98,24 +98,24 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     fmscale calib; /*will contain gain and intercept values*/
 
     fmlogmsg(where,
-	    "Now processing the individual pixels to gain ice probability...");
+	    "Now processing the individual pixels to gain ice probability.");
     /*
      * Convert structures to lesser units for later use...
      */
-    size = img.iw*img.ih;
+    size = img.h.xsize*img.h.ysize;
 
-    ucs0.Ax = img.Ax;
-    ucs0.Ay = img.Ay;
-    ucs0.Bx = img.Bx;
-    ucs0.By = img.By;
-    ucs0.iw = img.iw;
-    ucs0.ih = img.ih;
+    ucs0.Ax = img.h.ucs.Ax;
+    ucs0.Ay = img.h.ucs.Ay;
+    ucs0.Bx = img.h.ucs.Bx;
+    ucs0.By = img.h.ucs.By;
+    ucs0.iw = img.h.xsize;
+    ucs0.ih = img.h.ysize;
 
-    timeid.fm_year = img.yy;
-    timeid.fm_mon = img.mm;
-    timeid.fm_mday = img.dd;
-    timeid.fm_hour = img.ho;
-    timeid.fm_min = img.mi;
+    timeid.fm_year = img.h.valid_time.fm_year;
+    timeid.fm_mon = img.h.valid_time.fm_mon;
+    timeid.fm_mday = img.h.valid_time.fm_mday;
+    timeid.fm_hour = img.h.valid_time.fm_hour;
+    timeid.fm_min = img.h.valid_time.fm_min;
     timeid.fm_sec = 0;
     timeidsec = tofmsec1970(timeid);
 
@@ -131,253 +131,266 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     cpar.tdiff=-99;
     cpar.algo = algo;
 
-    fm_img2slopes(img,&calib); /*collects gain and intercept*/
+    //fm_img2slopes(img,&calib); /*collects gain and intercept*/
+
 
     doy = fmdayofyear(timeid);
 
     /*
-     * Start of nested loops that run through alle pixels.
+     * Start of nested loops that run through all pixels.
      */
-    for (yc=0; yc < img.ih; yc++) {
-	for (xc=0; xc < img.iw; xc++) {
+    for (yc=0; yc < img.h.ysize; yc++) {
+    	for (xc=0; xc < img.h.xsize; xc++) {
 
-	    /*
-	     * 2D -> 1D indexing...
-	     */
-	    i=fmivec(xc, yc, img.iw);
-	    class[i] = 0;
-	    cat[i] = 5; /*undef.*/
+    		/*
+    		 * 2D -> 1D indexing...
+    		 */
+    		i=fmivec(xc, yc, img.h.xsize);
 
-	    /*
-	     * Quick exit when test processing large tile (not
-	     * interested in all of the tile)
-	     */
-	    /*if (i > 10000000) {return(10);}*/
+    		//Set classification and category default values
+    		class[i] = 0;
+    		cat[i] = 5; /*undef.*/
 
-	    /*
-	     * Better safe than sorry...
-	     */
-	    for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
-		((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NOCOV;
-	    }
-
-	    /*
-	     * Estimate solar zenith angle for each pixel.
-	     */
-	    cart.row = yc;
-	    cart.col = xc;
-	    ucspos = fmind2ucs(ucs0, cart);
-	    geop = fmucs2geo(ucspos,MI);
-	    /*tst needed to compensate for changes in fmsolarzenith:*/
-	    tst = fmutc2tst(timeidsec, geop.lon);
-	    zsun = fmsolarzenith(tst, geop);
+    		/*
+    		 * Better safe than sorry...
+    		 * Set default values in probability array
+    		 */
+    		for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
+    			((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NOCOV;
+    		}
 
 
-	    if (zsun < FMSNOWSUNZEN) {
-		cpar.algo = 2;
-	    } else {
-		class[i] = 0;
-		for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
-		    ((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NIGHT;
-		}
-		continue;
-	    }
+    		//Get solar zenith angle
+    		for(im=0;im<sz.h.layers;im++) {
+    			if(strstr(sz.d[im].description, "sun zenith ang")) { //Find right layer (containing the solar zenith angle)
+    				if(sz.d[im].dtype == FMFLOAT) zsun = sz.d[im].floatarray[yc][xc]; //If data type is float
+    				else if(sz.d[im].dtype == FMINT) zsun = sz.d[im].intarray[yc][xc]; //If data type is int
+    				//fprintf(stdout,"Angle: %s %f %u %d (int: %u float: %u)\n", sz.d[im].description, zsun, sz.d[im].dtype, sz.d[im].intarray[yc][xc], FMINT, FMFLOAT);
+    			}
+    		}
 
-	    /*
-	     * Classification is only performed if the infrared channels
-	     * are available and only for the parts of the image were
-	     * the satellite has passed.
-	     */
-	    if ((img.image[3][i] == 0) && (img.image[4][i] == 0)) {
-		for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
-		    ((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NOCOV;
-		}
-		continue;
-	    }
+    		float zsun2;
 
-	    /*
-	     * Handle 3B if 3A is missing
-	     */
-	    cpar.daytime3b = 0;
-	    if (cpar.algo == 2) {
-		if (img.image[2][i] > 0 && img.image[5][i] == 0) {
-		    cpar.daytime3b = 1;
-		}
-	    }
+    		/*
+    		 * Estimate solar zenith angle for each pixel.
+    		 */
+    		cart.row = yc;
+    		cart.col = xc;
+    		ucspos = fmind2ucs(ucs0, cart);
+    		geop = fmucs2geo(ucspos,MI);
+    		/*tst needed to compensate for changes in fmsolarzenith:*/
+    		tst = fmutc2tst(timeidsec, geop.lon);
+    		zsun2 = fmsolarzenith(tst, geop);
 
-	    cpar.lmask = 0;
-	    if (lmask == NULL) {
-		if (i == 0) {
-		    fmlogmsg(where,
-			"Landmask not in use, using coefficients for sea/ice/cloud");
-		}
-	    }
-	    else {
-		cpar.lmask = (short) lmask[i];
-	    }
+    		fprintf(stdout,"Solvinkel: %f %f\n", zsun, zsun2);
 
-	    /*
-	     * Added hack on 3A due to saturation problems...
-	     */
-	    if (!cpar.daytime3b) {
-		if ((img.image[5][i] == 0) && (img.image[3][i] > 50)) {
-		    class[i] = 0;
-		    for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
-			((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_3A;
-		    }
-		    continue;
-		}
-	    }
-
-	    /*
-	     * Estimate geophysical parameters to be used in classification.
-	     * At present only a nighttime algoritm utilizing infrared
-	     * satellite information which are converted to
-	     * brightnesstemperatures. T3, T4 and T5 is the brightness-
-	     * temperatures of AVHRR channels 3, 4 and 5 respectively.
-	     * Dimension of temperatures are Kelvin.
-	     */
-
-	    if (cpar.algo == 2 && img.z > 3) {
-	        cpar.A1 = fm_byte2float(img.image[0][i], calib, "Reflectance");
-		cpar.A2 = fm_byte2float(img.image[1][i], calib, "Reflectance");
-		cpar.A3 = fm_byte2float(img.image[5][i], calib, "Reflectance");
-	    }
-	    cpar.T3 = fm_byte2float(img.image[2][i], calib, "Temperature");
-	    cpar.T4 = fm_byte2float(img.image[3][i], calib, "Temperature");
-	    cpar.T5 = fm_byte2float(img.image[4][i], calib, "Temperature");
-	    cpar.soz = zsun;
-	    cpar.saz = 0.;
-
-	    cpar.tdiff = 0.0;
-	    #ifdef FMSNOWCOVER_HAVE_LIBUSENWP
-	    cpar.tdiff = nwp.t0m[i]-cpar.T4;
-            #endif
-
-	    /* Estimate the reflective part of daytime channel 3b */
-	    if (cpar.daytime3b){
-	      cpar.A3b = fm_ch3brefl(cpar.T3,cpar.T4,cpar.soz,img.sa,doy);
-	    }
-
-
-	    if (i == 0) {
-	     fmlogmsg(where,"Using probest to estimate pixel probabilities...");
-	    }
-	    if (probest(cpar, &p, cof)) {
-		sprintf(what,
-			"Something went wrong in pixel processing of %d",i);
-		fmerrmsg(where,what);
-	    }
-
-	    /*
-	     * Adding this to prevent classification when probabilities do
-	     * not sum to 1.
-	     */
-	    if (p.pice+p.pfree+p.pcloud<0.95 || p.pice+p.pfree+p.pcloud>1.05){
-		continue;
-	    }
-
-	    /*
-	     * Also, if r3b1 is too large the probabilities can end up as
-	     * nan (not fixed by statement above). Trying this:
-	     */
-	    if (isnan(p.pice) || isnan(p.pfree) || isnan(p.pcloud)) {
-		continue;
-	    }
-
-	    ((float *) probs[0].data)[i] = p.pice;
-	    ((float *) probs[1].data)[i] = p.pfree;
-	    ((float *) probs[2].data)[i] = p.pcloud;
-
-	    /* Do not remove, I would like to test this further later...
-	     * It did not converge at first attempt...
-	     * �ystein God�y, METNO/FOU, 12.04.2007
-	    p = -8.48841152
-		+2.90687352*(cpar.A2/cpar.A1)
-		-8.06381521*(cpar.A3/cpar.A1)
-		+0.06169313*cpar.soz
-		+0.01925053*cpar.saz;
-	    x = -6.92968721
-		+3.15424360*(cpar.A2/cpar.A1)
-		-8.51300241*(cpar.A3/cpar.A1)
-		+0.04520431*cpar.soz;
-	    x = -7.147843141
-		+0.006599748*(cpar.A1/cos(deg2rad(cpar.soz)))
-		+2.962917376*(cpar.A2/cpar.A1)
-		-8.593505367*(cpar.A3/cpar.A1)
-		+0.047032443*(cpar.soz);
-	    x = -5.012037873
-		+0.008460015*(cpar.A1/cos(deg2rad(cpar.soz)))
-		-6.927675661*(cpar.A3/cpar.A1)
-		+0.044061292*(cpar.soz);
-	    x = -6.57091311
-		+0.00738986*(cpar.A1/cos(deg2rad(cpar.soz)))
-		-5.72279895*(cpar.A3/cpar.A1)
-		+0.05807489*(cpar.soz);
-
-	    x = -4.761735
-		+3.649293*(cpar.A2/cpar.A1)
-		-7.423763*(cpar.A3/cpar.A1);
-	    p = exp(x)/(1+exp(x));
-	    */
-
-	    if (p.pice < 0.0) {
-		class[i] = 0;
-	    } else if (p.pice < 0.05) {
-		class[i] = 1;
-	    } else if (p.pice < 0.10) {
-		class[i] = 2;
-	    } else if (p.pice < 0.15) {
-		class[i] = 3;
-	    } else if (p.pice < 0.20) {
-		class[i] = 4;
-	    } else if (p.pice < 0.25) {
-		class[i] = 5;
-	    } else if (p.pice < 0.30) {
-		class[i] = 6;
-	    } else if (p.pice < 0.35) {
-		class[i] = 7;
-	    } else if (p.pice < 0.40) {
-		class[i] = 8;
-	    } else if (p.pice < 0.45) {
-		class[i] = 9;
-	    } else if (p.pice < 0.50) {
-		class[i] = 10;
-	    } else if (p.pice < 0.55) {
-		class[i] = 11;
-	    } else if (p.pice < 0.60) {
-		class[i] = 12;
-	    } else if (p.pice < 0.65) {
-		class[i] = 13;
-	    } else if (p.pice < 0.70) {
-		class[i] = 14;
-	    } else if (p.pice < 0.75) {
-		class[i] = 15;
-	    } else if (p.pice < 0.80) {
-		class[i] = 16;
-	    } else if (p.pice < 0.85) {
-		class[i] = 17;
-	    } else if (p.pice < 0.90) {
-		class[i] = 18;
-	    } else if (p.pice < 0.95) {
-		class[i] = 19;
-	    } else if (p.pice <= 1.0) {
-		class[i] = 20;
-	    } else {
-		class[i] = 0;
-	    }
-
-	    if ((p.pice > p.pfree) && (p.pice > p.pcloud)) {
-	      cat[i] = ICE;
-	    } else if ((p.pfree > p.pice) && (p.pfree > p.pcloud)) {
-	      cat[i] = CLEAR;
-	    } else if ((p.pcloud > p.pice) && (p.pcloud > p.pfree)){
-	      cat[i] = CLOUD;
-	    } else { /*some probs. are equal*/
-	      cat[i] = UNCL;
-	    }
-
-	}
+//
+//
+//    		if (zsun < FMSNOWSUNZEN) {
+//    			cpar.algo = 2;
+//    		} else {
+//    			class[i] = 0;
+//    			for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
+//    				((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NIGHT;
+//    			}
+//    			continue;
+//    		}
+//
+//    		/*
+//    		 * Classification is only performed if the infrared channels
+//    		 * are available and only for the parts of the image were
+//    		 * the satellite has passed.
+//    		 */
+//    		if ((img.image[3][i] == 0) && (img.image[4][i] == 0)) {
+//    			for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
+//    				((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NOCOV;
+//    			}
+//    			continue;
+//    		}
+//
+//    		/*
+//    		 * Handle 3B if 3A is missing
+//    		 */
+//    		cpar.daytime3b = 0;
+//    		if (cpar.algo == 2) {
+//    			if (img.image[2][i] > 0 && img.image[5][i] == 0) {
+//    				cpar.daytime3b = 1;
+//    			}
+//    		}
+//
+//    		cpar.lmask = 0;
+//    		if (lmask == NULL) {
+//    			if (i == 0) {
+//    				fmlogmsg(where,
+//    						"Landmask not in use, using coefficients for sea/ice/cloud");
+//    			}
+//    		}
+//    		else {
+//    			cpar.lmask = (short) lmask[i];
+//    		}
+//
+//    		/*
+//    		 * Added hack on 3A due to saturation problems...
+//    		 */
+//    		if (!cpar.daytime3b) {
+//    			if ((img.image[5][i] == 0) && (img.image[3][i] > 50)) {
+//    				class[i] = 0;
+//    				for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
+//    					((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_3A;
+//    				}
+//    				continue;
+//    			}
+//    		}
+//
+//    		/*
+//    		 * Estimate geophysical parameters to be used in classification.
+//    		 * At present only a nighttime algoritm utilizing infrared
+//    		 * satellite information which are converted to
+//    		 * brightnesstemperatures. T3, T4 and T5 is the brightness-
+//    		 * temperatures of AVHRR channels 3, 4 and 5 respectively.
+//    		 * Dimension of temperatures are Kelvin.
+//    		 */
+//
+//    		if (cpar.algo == 2 && img.z > 3) {
+//    			cpar.A1 = fm_byte2float(img.image[0][i], calib, "Reflectance");
+//    			cpar.A2 = fm_byte2float(img.image[1][i], calib, "Reflectance");
+//    			cpar.A3 = fm_byte2float(img.image[5][i], calib, "Reflectance");
+//    		}
+//    		cpar.T3 = fm_byte2float(img.image[2][i], calib, "Temperature");
+//    		cpar.T4 = fm_byte2float(img.image[3][i], calib, "Temperature");
+//    		cpar.T5 = fm_byte2float(img.image[4][i], calib, "Temperature");
+//    		cpar.soz = zsun;
+//    		cpar.saz = 0.;
+//
+//    		cpar.tdiff = 0.0;
+//#ifdef FMSNOWCOVER_HAVE_LIBUSENWP
+//    		cpar.tdiff = nwp.t0m[i]-cpar.T4;
+//#endif
+//
+//    		/* Estimate the reflective part of daytime channel 3b */
+//    		if (cpar.daytime3b){
+//    			cpar.A3b = fm_ch3brefl(cpar.T3,cpar.T4,cpar.soz,img.sa,doy);
+//    		}
+//
+//
+//    		if (i == 0) {
+//    			fmlogmsg(where,"Using probest to estimate pixel probabilities...");
+//    		}
+//    		if (probest(cpar, &p, cof)) {
+//    			sprintf(what,
+//    					"Something went wrong in pixel processing of %d",i);
+//    			fmerrmsg(where,what);
+//    		}
+//
+//    		/*
+//    		 * Adding this to prevent classification when probabilities do
+//    		 * not sum to 1.
+//    		 */
+//    		if (p.pice+p.pfree+p.pcloud<0.95 || p.pice+p.pfree+p.pcloud>1.05){
+//    			continue;
+//    		}
+//
+//    		/*
+//    		 * Also, if r3b1 is too large the probabilities can end up as
+//    		 * nan (not fixed by statement above). Trying this:
+//    		 */
+//    		if (isnan(p.pice) || isnan(p.pfree) || isnan(p.pcloud)) {
+//    			continue;
+//    		}
+//
+//    		((float *) probs[0].data)[i] = p.pice;
+//    		((float *) probs[1].data)[i] = p.pfree;
+//    		((float *) probs[2].data)[i] = p.pcloud;
+//
+//    		/* Do not remove, I would like to test this further later...
+//    		 * It did not converge at first attempt...
+//    		 * �ystein God�y, METNO/FOU, 12.04.2007
+//	    p = -8.48841152
+//		+2.90687352*(cpar.A2/cpar.A1)
+//		-8.06381521*(cpar.A3/cpar.A1)
+//		+0.06169313*cpar.soz
+//		+0.01925053*cpar.saz;
+//	    x = -6.92968721
+//		+3.15424360*(cpar.A2/cpar.A1)
+//		-8.51300241*(cpar.A3/cpar.A1)
+//		+0.04520431*cpar.soz;
+//	    x = -7.147843141
+//		+0.006599748*(cpar.A1/cos(deg2rad(cpar.soz)))
+//		+2.962917376*(cpar.A2/cpar.A1)
+//		-8.593505367*(cpar.A3/cpar.A1)
+//		+0.047032443*(cpar.soz);
+//	    x = -5.012037873
+//		+0.008460015*(cpar.A1/cos(deg2rad(cpar.soz)))
+//		-6.927675661*(cpar.A3/cpar.A1)
+//		+0.044061292*(cpar.soz);
+//	    x = -6.57091311
+//		+0.00738986*(cpar.A1/cos(deg2rad(cpar.soz)))
+//		-5.72279895*(cpar.A3/cpar.A1)
+//		+0.05807489*(cpar.soz);
+//
+//	    x = -4.761735
+//		+3.649293*(cpar.A2/cpar.A1)
+//		-7.423763*(cpar.A3/cpar.A1);
+//	    p = exp(x)/(1+exp(x));
+//    		 */
+//
+//    		if (p.pice < 0.0) {
+//    			class[i] = 0;
+//    		} else if (p.pice < 0.05) {
+//    			class[i] = 1;
+//    		} else if (p.pice < 0.10) {
+//    			class[i] = 2;
+//    		} else if (p.pice < 0.15) {
+//    			class[i] = 3;
+//    		} else if (p.pice < 0.20) {
+//    			class[i] = 4;
+//    		} else if (p.pice < 0.25) {
+//    			class[i] = 5;
+//    		} else if (p.pice < 0.30) {
+//    			class[i] = 6;
+//    		} else if (p.pice < 0.35) {
+//    			class[i] = 7;
+//    		} else if (p.pice < 0.40) {
+//    			class[i] = 8;
+//    		} else if (p.pice < 0.45) {
+//    			class[i] = 9;
+//    		} else if (p.pice < 0.50) {
+//    			class[i] = 10;
+//    		} else if (p.pice < 0.55) {
+//    			class[i] = 11;
+//    		} else if (p.pice < 0.60) {
+//    			class[i] = 12;
+//    		} else if (p.pice < 0.65) {
+//    			class[i] = 13;
+//    		} else if (p.pice < 0.70) {
+//    			class[i] = 14;
+//    		} else if (p.pice < 0.75) {
+//    			class[i] = 15;
+//    		} else if (p.pice < 0.80) {
+//    			class[i] = 16;
+//    		} else if (p.pice < 0.85) {
+//    			class[i] = 17;
+//    		} else if (p.pice < 0.90) {
+//    			class[i] = 18;
+//    		} else if (p.pice < 0.95) {
+//    			class[i] = 19;
+//    		} else if (p.pice <= 1.0) {
+//    			class[i] = 20;
+//    		} else {
+//    			class[i] = 0;
+//    		}
+//
+//    		if ((p.pice > p.pfree) && (p.pice > p.pcloud)) {
+//    			cat[i] = ICE;
+//    		} else if ((p.pfree > p.pice) && (p.pfree > p.pcloud)) {
+//    			cat[i] = CLEAR;
+//    		} else if ((p.pcloud > p.pice) && (p.pcloud > p.pfree)){
+//    			cat[i] = CLOUD;
+//    		} else { /*some probs. are equal*/
+//    			cat[i] = UNCL;
+//    		}
+//
+    	}
     }
     fmlogmsg(where,"Now returning to main...");
 
