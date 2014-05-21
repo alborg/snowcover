@@ -189,14 +189,14 @@ typedef struct {
 void usage(void);
 
 int decode_cfg(char cfgfile[],cfgstruct *cfg);
-int decode_cfg_new(char cfgfile[],cfgstruct *cfg);
+int decode_cfg_swath(char cfgfile[],cfgstruct *cfg);
 
 int process_pixels4ice(fmio_img img, 
     unsigned char *cmask[], unsigned char *lmask, nwpice nwp, 
     datafield *probs, unsigned char *class, unsigned char *cat,
     short algo, statcoeffstr cof);
 
-int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
+int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
        unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof);
 

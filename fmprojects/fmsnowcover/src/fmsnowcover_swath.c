@@ -1,12 +1,4 @@
 /*
- * fmsnowcover_new.c
- *
- *  Created on: 19. mai 2014
- *      Author: anettelb
- */
-
-
-/*
  * PURPOSE:
  * To determine whether a pixel is covered by snow for AVHRR pixels.
  *
@@ -76,7 +68,7 @@
 
 int main(int argc, char *argv[]) {
 
-    char *where="fmsnowcover";
+    char *where="fmsnowcover_swath";
     char what[FMSNOWCOVER_MSGLENGTH];
     extern char *optarg;
     int ret;
@@ -89,26 +81,18 @@ int main(int argc, char *argv[]) {
     char *infile, *cfgfile, *coffile, *sunzenf;
     char *fnwc[3]={"h12sf","h12pl","h12ml"};
     unsigned char *classed, *cat;
-    cfgstruct cfg;
+    cfgstruct cfg; //fmsnowcover.h?
     FILE *lmask_located, *sunzen_located; /*Can be removed later*/
-    fmio_mihead iinfo = {  //fmio.h
-	"Not known",
-	00, 00, 00, 00, 0000, -9,
-	{0, 0, 0, 0, 0, 0, 0, 0},
-	0, 0, 0, 0., 0., -999., -999.
-    };
     fmio_mihead clinfo = {  //fmio.h
 	"Not known",
 	00, 00, 00, 00, 0000, -9,
 	{0, 0, 0, 0, 0, 0, 0, 0},
 	0, 0, 0, 0., 0., -999., -999.
     };
-    //fmio_img img;   //fmio.h
     fmdataset img, lm, sz;  //fmutil.h
     fmucsref refucs;  //fmutil.h
     fmtime reftime;  //fmtime.h
     nwpice nwp; //getnwp.h
-    //osihdf lm;  //safhdf.h
     osihdf ice;  //safhdf.h
     osi_dtype ice_ft[FMSNOWCOVER_OLEVELS]={OSI_FLOAT,OSI_FLOAT,OSI_FLOAT};   //safhdf.h
     char *ice_desc[FMSNOWCOVER_OLEVELS]={"P(ice/snow)","P(water/land)","P(cloud)"};
@@ -152,7 +136,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (!iflg || !cflg || !lflg || !sflg) errflg++;
+    if (!iflg || !cflg || !lflg || !sflg) errflg++; //If input arguments are missing
     if (errflg) usage();
 
     fprintf(stdout,"\n");
@@ -162,9 +146,9 @@ int main(int argc, char *argv[]) {
     fprintf(stdout,"\n");
 
     /*
-     * Decode configuration file.
+     * Decode configuration file, put file names etc in struct type "cfgstruct" (defined in fmsnowcover.h?)
      */
-    if (decode_cfg_new(cfgfile,&cfg) != 0) {
+    if (decode_cfg_swath(cfgfile,&cfg) != 0) {
 	fmerrmsg(where,"Could not decode configuration");
 	exit(FM_IO_ERR);
     }
@@ -213,6 +197,8 @@ int main(int argc, char *argv[]) {
     }
     sprintf(coffile,"%s",cfg.probtabname);
 
+
+
     /*
      * Open data file and read image
      * data and information
@@ -220,14 +206,13 @@ int main(int argc, char *argv[]) {
     fprintf(stdout," Reading input data...\n");
     fprintf(stdout," %s\n", fname);
 
-
-    if (init_fmdataset(&img)) {
+    if (init_fmdataset(&img)) { //Initialize struct img (fmdataset)
     	fmerrmsg(where,"Could not initialize fmdataset");
     	exit(FM_OTHER_ERR);
 
     }
 
-    if(fm_readMETSATdata_swath(infile, &img)){
+    if(fm_readMETSATdata_swath(infile, &img)){ //Read data into struct img
     	fmerrmsg(where,"Could not open file...\n");
     	exit(FM_IO_ERR);
     }
@@ -236,44 +221,29 @@ int main(int argc, char *argv[]) {
     /*
      * Check the number of valid pixels
      *
-     * NB!!!!!!!!!! Checking just one channel at the moment!!!!!!!!!!
+     * Checking channel 1
      */
     size = img.h.xsize*img.h.ysize;
-
     int valpix = 0;
     int i,j;
     for (i=0;i<img.h.xsize;i++) {
     	for(j=0;j<img.h.ysize;j++) {
-    		if ((img.d)->intarray[i][j] == (img.d)[0].missingdatavalue) continue;
-    		valpix++;
+    		if ((img.d)->intarray[i][j] == (img.d)[0].missingdatavalue || (img.d)->intarray[i][j] == (img.d)[0].nodatavalue) continue; //If data value = default value (no data), skip to next data point
+    		valpix++; //... or, if valid data value, add to valpix.
     	}
     }
-    float cover = valpix*100./size;
+    float cover = valpix*100./size; //Find % of valid data
     printf(" Image cover: %.2f\n",cover);
-    if ((cover < 20. && (strstr(fname,"NoA") == NULL))) {
+    if ((cover < 20. && (strstr(fname,"NoA") == NULL))) { //If less than 20% of data is valid, end program.
     	fmlogmsg(where,
     			"The percentage coverage (%.0f%) of this scene is too small for further processing.",cover);
     	exit(FM_OK);
     }
 
-    //Transfer info from header
-
+    //Transfer info
     printf(" Satellite: %s\n", img.h.platform_name);
     printf(" Time: %02d/%02d/%4d %02d:%02d\n", img.h.valid_time.fm_mday, img.h.valid_time.fm_mon, img.h.valid_time.fm_year, //img.dd, img.mm, img.yy,
     		img.h.valid_time.fm_hour, img.h.valid_time.fm_min);//img.ho, img.mi);
-    sprintf(iinfo.satellite,"%s",img.h.platform_name);
-    iinfo.hour = img.h.valid_time.fm_hour;
-    iinfo.minute = img.h.valid_time.fm_min;
-    iinfo.day = img.h.valid_time.fm_mday;
-    iinfo.month = img.h.valid_time.fm_mon;
-    iinfo.year = img.h.valid_time.fm_year;
-    iinfo.zsize = img.h.layers; //=no of image groups?
-    iinfo.xsize = img.h.xsize;
-    iinfo.ysize = img.h.ysize;
-    iinfo.Ax = img.h.ucs.Ax;
-    iinfo.Ay = img.h.ucs.Ay;
-    iinfo.Bx = img.h.ucs.Bx;
-    iinfo.By = img.h.ucs.By;
     reftime.fm_hour = img.h.valid_time.fm_hour;
     reftime.fm_min = img.h.valid_time.fm_min;
     reftime.fm_sec = 0;
@@ -289,28 +259,26 @@ int main(int argc, char *argv[]) {
 
 
     /*
-     * Get NWP data...
+     * Get NWP data (model)...
      * This is probably not necessary in the future, but is kept until it
      * is clear whether T4 will be used to avoid cloud contamination or not.
      */
 
     nwpice_init(&nwp);
 
-//#ifdef FMSNOWCOVER_HAVE_LIBUSENWP
-//    if (nwpice_read(cfg.nwppath,fnwc,3,4,reftime,refucs,&nwp)) {
-//    	fmerrmsg(where,"No NWP data available.");
-//    	free_fmdataset(&img);
-//    	nwpice_free(&nwp);
-//    	exit(FM_IO_ERR);
-//    }
-//#endif
+#ifdef FMSNOWCOVER_HAVE_LIBUSENWP
+    if (nwpice_read(cfg.nwppath,fnwc,3,4,reftime,refucs,&nwp)) {
+    	fmerrmsg(where,"No NWP data available.");
+    	free_fmdataset(&img);
+    	nwpice_free(&nwp);
+    	exit(FM_IO_ERR);
+    }
+#endif
 
 
     /*
-     * Get land/sea mask, accepted if within 0.5 km of the image.
-     * Reintroduced to determine whether coeffs for land or sea should be used.
+     * Get land/sea mask produced by PPS.
      */
-
 
     lm.d = NULL;
     if (lmask_located = fopen(lmaskf,"r")) {
@@ -324,8 +292,6 @@ int main(int argc, char *argv[]) {
     		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read land/sea mask");
     		return(FM_IO_ERR);
     	}
-
-    	fprintf(stdout,"Finished reading land/sea mask \n");
     }
     else {
     	fmlogmsg(where,"No landmask is available, continuing without.");
@@ -333,6 +299,9 @@ int main(int argc, char *argv[]) {
 
 
 
+    /*
+     * Get sun zenith angle, produced by PPS
+     */
     if (sunzen_located = fopen(sunzenf,"r")) {
         	fprintf(stdout," Reading sun zenith angle: %s\n", sunzenf);
         	status = fm_readMETSATdata_swath(sunzenf, &sz);
@@ -368,7 +337,7 @@ int main(int argc, char *argv[]) {
      * classification of the present satellite scene. Further description
      * of the function is given in the code.
      */
-    init_osihdf(&ice);
+    init_osihdf(&ice); //Initialize struct ice, and set header info
     sprintf(ice.h.source, "%s", img.h.platform_name);
     sprintf(ice.h.product, "%s", where);
     ice.h.iw = img.h.xsize;
@@ -385,7 +354,7 @@ int main(int argc, char *argv[]) {
     ice.h.minute = img.h.valid_time.fm_min;
     status = malloc_osihdf(&ice,ice_ft,ice_desc);
 
-    classed = (unsigned char *) malloc(size*sizeof(char));
+    classed = (unsigned char *) malloc(size*sizeof(char)); //Allocate array
     if (!classed) {
 	sprintf(what,
 	"Could not allocate memory for classed array while processing : %s\n",
@@ -394,7 +363,7 @@ int main(int argc, char *argv[]) {
 	exit(FM_MEMALL_ERR);
     }
     /*MAK added 22/9-09*/
-    cat = (unsigned char *) malloc(size*sizeof(char));
+    cat = (unsigned char *) malloc(size*sizeof(char)); //Allocate array
     if (!cat) {
 	sprintf(what,
 	"Could not allocate memory for cat array while processing : %s\n",
@@ -405,11 +374,13 @@ int main(int argc, char *argv[]) {
 
     fmlogmsg(where,"Estimating ice probability");
 
-    if (lm.d == NULL) {
-      status = process_pixels4ice_new(img, NULL, NULL, nwp, sz,
+    //Input parameters of process_pixels4ice_swath: data struct, cmask?, landmask struct, model data (NWP) struct, sun zenith angles struct, struct with info,
+    //array to be filled with classifications, array to be filled with categories, algo, coefficient struct
+    if (lm.d == NULL) { //If no land mask
+      status = process_pixels4ice_swath(img, NULL, NULL, nwp, sz,
 				  ice.d, classed, cat, 2, coeffs);
     } else {
-      status = process_pixels4ice_new(img, NULL, (unsigned char **)(lm.d->intarray), nwp, sz,
+      status = process_pixels4ice_swath(img, NULL, (unsigned char **)(lm.d->intarray), nwp, sz,
 				  ice.d, classed, cat, 2, coeffs);
     }
 
@@ -529,7 +500,7 @@ int main(int argc, char *argv[]) {
  * To decode configuration file.
  */
 
-int decode_cfg_new(char cfgfile[],cfgstruct *cfg) {
+int decode_cfg_swath(char cfgfile[],cfgstruct *cfg) {
     FILE *fp;
     char *where="decode_cfg";
     char *dummy,*pt;
@@ -644,5 +615,3 @@ int decode_cfg_new(char cfgfile[],cfgstruct *cfg) {
 
     return(FM_OK);
 }
-
-

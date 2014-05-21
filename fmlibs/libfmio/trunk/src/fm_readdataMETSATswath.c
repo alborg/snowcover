@@ -15,6 +15,7 @@
 #define PPSCMDATASETS 2
 #define GACDATASETS 4
 
+//Internal functions
 int fm_readH5data(char *filename, fmdataset *d, fmbool headeronly);
 int fm_create_hdf5_string(hid_t *str, size_t size);
 int fm_create_hdf5_vlstring(hid_t *str);
@@ -45,25 +46,9 @@ typedef struct {
     char pcs_def[128];
 } ppsregion;
 
-//void fm_cnvtm(int data_first_year,int data_first_dayofyear, double
-//        data_first_secofday,unsigned short int *dd, unsigned short int *mm,
-//        unsigned short int *yy, unsigned short int *ho, unsigned short int *mi) {
-//
-//    double jd1,jdnow,h;
-//    int d,m,y;
-//
-//    jd1=fm_julday(1,1,data_first_year,12.0);
-//    jdnow=jd1+(double)data_first_dayofyear-1.0;
-//    fm_caldat(&d,&m,&y,&h,jdnow);
-//    *yy=(unsigned short int)y;
-//    *mm=(unsigned short int)m;
-//    *dd=(unsigned short int)d;
-//    *ho=(unsigned short int)(data_first_secofday/3600.0);
-//    *mi=(unsigned short int)( (data_first_secofday-(double)(*ho)*3600.0)/60);
-//}
-
 
 int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
+	//Input: File name, struct fd to be filled
 
     char *where="fm_readdataMETSATswath",mymsg[255];
     char mystring[FMSTRING128];
@@ -76,7 +61,6 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     hsize_t dsd_d[2];
     herr_t status;
     fmbool isviirs = FMFALSE, isavhrr = FMFALSE;
-    //fmdataset fd;
     H5G_info_t gr_slash_info;
 
     /*
@@ -86,8 +70,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
 
     /*
-     * Open HDF file and check contents. While doing this we also fill the
-     * contents of the header if the required elements are found.
+     * Open H5 file and check contents.
      */
 
     file = H5Fopen(filename, H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -96,10 +79,10 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	return(FM_IO_ERR);
     };
 
+    grp = H5Gopen(file,"how"); //Try to open group "how" in file
+    if(grp >= 0) { //If the group exists = the file is a avhrr/viirs data file or sun zenith angle file
 
-    grp = H5Gopen(file,"how");
-    if(grp >= 0) { //If the file is a regular avhrr/viirs data file or sunsat angle filel
-
+    	//Read "how" group data (satellite name, instrument, orbit number, epoch)
     	if (fm_extracthow(grp, &(fd->h))) {
     		fmerrmsg(where,"Could not decode HOW group in file");
     		return(FM_IO_ERR);
@@ -111,6 +94,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	};
 
 
+    	//Read "what" group data (date, time, number of layers (channels/images))
     	grp = H5Gopen(file,"what");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHAT."); return(FM_IO_ERR);}
     	if (fm_extractwhat(grp, &(fd->h))) {
@@ -123,7 +107,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
-
+    	//Read "where" group data (xsize, ysize, xscale, yscale)
     	grp = H5Gopen(file,"where");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHERE."); return(FM_IO_ERR);}
     	if (fm_extractwhere(grp, &(fd->h))) {
@@ -136,6 +120,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
+    	//Read actual data content (the channel/image data)
     	if (fm_extractimagedata(file, fd)) {
     		fmerrmsg(where,"Could not decode image data");
     		return(FM_IO_ERR);
@@ -147,7 +132,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	}    else { fmerrmsg(where, "Do not recognize instrument, bailing out!"); return(FM_OTHER_ERR); }
 
     }
-    else {
+    else { //Physiography file
     	fmlogmsg(where,"Could not find group HOW. Not a regular data file.");
 
     	hid_t ds_id; //Dataset id
@@ -160,6 +145,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	int **intarray;
     	int xsize, ysize;
 
+    	//Read "region" dataset (xsize, ysize, xscale, yscale), insert info into struct header
     	if (fm_extractppsregion(file,  &(fd->h))) {
     		fmerrmsg(where,"Could not read region");
     		return(FM_IO_ERR);
@@ -168,12 +154,13 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
     	dsd_d[0] = fd->h.xsize;
     	dsd_d[1] = fd->h.ysize;
-    	fd->h.layers = 1;
+    	fd->h.layers = 1; //There is only one struct data field that we want to read into from this file.
 
-    	dataset = H5Dopen(file,"fracofland");
+    	dataset = H5Dopen(file,"fracofland"); //Open dataset "fracofland"
     	if(dataset >= 0) { //Physiography file
     		fmlogmsg(where,"Physiography file detected.");
 
+    		//Allocate dataspace, a data field in the struct, a 2d array in the data field and a 1d temp array (for reading data into).
     		dataspace = H5Screate_simple(2, dsd_d, NULL);
     		if (dataspace < 0) {
     			fmerrmsg(where,"Could not create dataspace");
@@ -192,8 +179,9 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     			return(FM_MEMALL_ERR);
     		}
 
-    		fd->d[0].dtype = FMINT;
+    		fd->d[0].dtype = FMINT; //The data type is int
 
+    		//Read data into temp 1d array mydata
     		status = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
     		if (status < 0) {
     			fmerrmsg(where,"Could not read data field");
@@ -210,6 +198,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     			return(FM_IO_ERR);
     		};
 
+    		//Transfer data from temporary array to data field in struct
     		int j,k;
     		for (j=0;j<fd->h.ysize; j++) {
     			for (k=0;k<fd->h.xsize; k++) {
@@ -217,6 +206,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     			}
     		}
 
+    		//Free the temporary array
     		if (fmfree_int_vector(mydata)) {
     			fmerrmsg(where,"Could not free mydata");
     			return(FM_MEMALL_ERR);
@@ -226,6 +216,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
     }
 
+    //Close the file
     status = H5Fclose(file);
     if (status < 0) {
     	fmerrmsg(where,"Could not close file %s", filename);

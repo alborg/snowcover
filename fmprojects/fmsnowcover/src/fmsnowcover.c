@@ -1,27 +1,27 @@
 /*
  * PURPOSE:
- * To determine whether a pixel is covered by snow for AVHRR pixels. 
- * 
+ * To determine whether a pixel is covered by snow for AVHRR pixels.
+ *
  * INPUT:
  * o Multichannel AVHRR satellite imagery in MEOS/HDF format, filename
  *   specified on commandline. Full path is required.
- * o Mask file in DNMI TIFF format specified by symbolic link. 
+ * o Mask file in DNMI TIFF format specified by symbolic link.
  *
  * OUTPUT:
  * o OSIHDF5 file containing floating point values for 3 classes.
  * o DNMI TIFF file containing colortable.
  *   Filename has to be specified at commandline. Full path is required.
- * 
+ *
  * BUGS:
  * NA
  *
- * AUTHOR: 
+ * AUTHOR:
  * �ystein God�y, DNMI/FOU, 13/12/2000
  *
  * MODIFICATIONS:
  * �ystein God�y, DNMI/FOU, 02/03/2001
  * Datastream altered, removed some parts which were only used for testing.
- * Output format MITIFF was updated. Still a lot of cleaning of code is 
+ * Output format MITIFF was updated. Still a lot of cleaning of code is
  * required.
  * �ystein God�y, DNMI/FOU, 25/03/2001
  * Implemented use of configuration file, additional changes in user
@@ -55,7 +55,7 @@
  */
 
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa19_20140410_0540_26641_nr.aha
- 
+
 #include <fmsnowcover.h>
 #include <unistd.h>
 #include <fmaccusnow.h>
@@ -80,14 +80,14 @@ int main2(int argc, char *argv[]) {
     FILE *lmask_located; /*Can be removed later*/
     fmio_mihead iinfo = {
 	"Not known",
-	00, 00, 00, 00, 0000, -9, 
-	{0, 0, 0, 0, 0, 0, 0, 0}, 
+	00, 00, 00, 00, 0000, -9,
+	{0, 0, 0, 0, 0, 0, 0, 0},
 	0, 0, 0, 0., 0., -999., -999.
     };
     fmio_mihead clinfo = {
 	"Not known",
-	00, 00, 00, 00, 0000, -9, 
-	{0, 0, 0, 0, 0, 0, 0, 0}, 
+	00, 00, 00, 00, 0000, -9,
+	{0, 0, 0, 0, 0, 0, 0, 0},
 	0, 0, 0, 0., 0., -999., -999.
     };
     fmio_img img;
@@ -133,7 +133,7 @@ int main2(int argc, char *argv[]) {
     fprintf(stdout," |                  FMSNOWCOVER                 |\n");
     fprintf(stdout," ================================================\n");
     fprintf(stdout,"\n");
- 
+
     /*
      * Decode configuration file.
      */
@@ -290,7 +290,7 @@ int main2(int argc, char *argv[]) {
     }
 
     /*
-     * Loading the statistical coeffs into statcoeffs struct           
+     * Loading the statistical coeffs into statcoeffs struct
      */
     fmlogmsg(where,"Loading statistical coefficients from \n\t%s", coffile);
     ret = rdstatcoeffs(coffile,&coeffs);
@@ -347,10 +347,10 @@ int main2(int argc, char *argv[]) {
       status = process_pixels4ice(img, NULL, NULL, nwp,
 				  ice.d, classed, cat, 2, coeffs);
     } else {
-      status = process_pixels4ice(img, NULL, (unsigned char *)(lm.d->data), 
+      status = process_pixels4ice(img, NULL, (unsigned char *)(lm.d->data),
 				  nwp, ice.d, classed, cat, 2, coeffs);
     }
-    
+
     if ((status) && (status != 10)) {
 	sprintf(what,"Something failed while processing pixels of %s",infile);
 	fmerrmsg(where,what);
@@ -360,7 +360,7 @@ int main2(int argc, char *argv[]) {
     } else {
         fmlogmsg(where,"Finished estimating ice probability");
     }
-    
+
     /*
      * Clean up memory used.
      *
@@ -373,7 +373,7 @@ int main2(int argc, char *argv[]) {
     }
 
     /*
-     * Write results to files, HDF5 file for internal use and TIFF 6.0 
+     * Write results to files, HDF5 file for internal use and TIFF 6.0
      * (MITIFF) file for visual presentation on Internet/DIANA etc.
      *
      * MITIFF generation will be moved to a separate application in
@@ -395,7 +395,7 @@ int main2(int argc, char *argv[]) {
 
     opfn1 = (char *) malloc(FILELEN+5);
     if (!opfn1) exit(FM_IO_ERR);
-    sprintf(opfn1,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.hdf5", 
+    sprintf(opfn1,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.hdf5",
 	cfg.productpath,pname,
 	img.yy, img.mm, img.dd, img.ho, img.mi);
     sprintf(what,"Creating output file: %s", opfn1);
@@ -408,7 +408,7 @@ int main2(int argc, char *argv[]) {
 
     opfn2 = (char *) malloc(FILELEN+5);
     if (!opfn2) exit(FM_IO_ERR);
-    sprintf(opfn2,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.mitiff", 
+    sprintf(opfn2,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.mitiff",
 	cfg.productpath,pname,
 	img.yy, img.mm, img.dd, img.ho, img.mi);
     sprintf(what,"Creating output file: %s", opfn2);
@@ -421,7 +421,7 @@ int main2(int argc, char *argv[]) {
     /*Must make some changes in subroutines as well. */
     opfn3 = (char *) malloc(FILELEN+5);
     if (!opfn3) exit(FM_IO_ERR);
-    sprintf(opfn3,"%s/fmsnow_cat_%s_%4d%02d%02d%02d%02d.mitiff", 
+    sprintf(opfn3,"%s/fmsnow_cat_%s_%4d%02d%02d%02d%02d.mitiff",
 	cfg.productpath,pname,
 	img.yy, img.mm, img.dd, img.ho, img.mi);
     sprintf(what,"Creating output file: %s", opfn3);
@@ -616,10 +616,10 @@ int rdstatcoeffs (char *coeffsfile, statcoeffstr *cof){
   dummystr dummies = {" "," ",' ',0.,0.,0.};
   int j, ret;
 
-  ret = 0; 
+  ret = 0;
 
   fpi = fopen(coeffsfile,"r");
-  if (!fpi) { 
+  if (!fpi) {
     sprintf(what,"Unable to open file %s",coeffsfile);
     fmerrmsg(where,what);
     return(FM_IO_ERR);
@@ -652,7 +652,7 @@ int rdstatcoeffs (char *coeffsfile, statcoeffstr *cof){
 
   if (line) free(line);
   fclose(fpi);
-  
+
   return(ret);
 }
 
@@ -663,7 +663,7 @@ int locstatcoeffs (dummystr dummies, statcoeffstr *cof){
   int featflg,surfflg,ret;
 
   featflg = surfflg = 0;
- 
+
   if (!strcmp(dummies.surf,"ice")) { /*strcmp returns 0 if match!*/
     if (!strcmp(dummies.feat,"a1")) putcoeffs(&cof->ice.a1,dummies);
     else if (!strcmp(dummies.feat,"r21")) putcoeffs(&cof->ice.r21,dummies);
@@ -671,7 +671,7 @@ int locstatcoeffs (dummystr dummies, statcoeffstr *cof){
     else if (!strcmp(dummies.feat,"r3b1")) putcoeffs(&cof->ice.r3b1,dummies);
     else if (!strcmp(dummies.feat,"dt"))  putcoeffs(&cof->ice.dt,dummies);
     else featflg++;
-  } 
+  }
   else if (!strcmp(dummies.surf,"snow")) { /*strcmp returns 0 if match!*/
     if (!strcmp(dummies.feat,"a1")) putcoeffs(&cof->snow.a1,dummies);
     else if (!strcmp(dummies.feat,"r21")) putcoeffs(&cof->snow.r21,dummies);
@@ -744,7 +744,7 @@ float findcloudfree(datafield *d, int xsize, int ysize) {
     notcovered = cloudfree = 0;
     for (i=0;i<(xsize*ysize);i++) {
 	if (((float *) d[0].data)[i] == FMSNOWCOVERMISVAL_NOCOV) notcovered++;
-	if (((float *) d[0].data)[i] > ((float *) d[1].data)[i] > ((float *) 
+	if (((float *) d[0].data)[i] > ((float *) d[1].data)[i] > ((float *)
 	    d[2].data)[i]) {
 	    cloudfree++;
 	} else if (((float *) d[1].data)[i] > ((float *) d[0].data)[i] > ((float *) d[2].data)[i]) {
@@ -796,3 +796,4 @@ int updateindexfile(char *filename, char *avhrrfile, char *fmsnowfile,
 
     return(FM_OK);
 }
+

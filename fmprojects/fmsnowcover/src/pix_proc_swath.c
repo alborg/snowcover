@@ -1,10 +1,3 @@
-/*
- * pix_proc_new.c
- *
- *  Created on: 20. mai 2014
- *      Author: anettelb
- */
-
 
 /*
  * NAME:
@@ -75,11 +68,14 @@
 #include <fmsnowcover.h>
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
-int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
+int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
        unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof) {
 
-    char *where="process_pixels4ice";
+	//Input: data struct, cmask?, landmask struct, model data (NWP) struct, sun zenith angles struct, struct with info,
+	//array to be filled with classifications, array to be filled with categories, algo, coefficient struct
+
+    char *where="process_pixels4ice_swath";
     char what[FMSNOWCOVER_MSGLENGTH];
     int i, j, size, im;
     int xc, yc;
@@ -131,8 +127,6 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     cpar.tdiff=-99;
     cpar.algo = algo;
 
-    //fm_img2slopes(img,&calib); /*collects gain and intercept*/
-
 
     doy = fmdayofyear(timeid);
 
@@ -143,7 +137,7 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     	for (xc=0; xc < img.h.xsize; xc++) {
 
     		/*
-    		 * 2D -> 1D indexing...
+    		 * 2D -> 1D indexing, for arrays to be filled...
     		 */
     		i=fmivec(xc, yc, img.h.xsize);
 
@@ -160,7 +154,7 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     		}
 
 
-    		//Get solar zenith angle
+    		//Get solar zenith angle for this pixel
     		for(im=0;im<sz.h.layers;im++) {
     			if(strstr(sz.d[im].description, "sun zenith ang")) { //Find right layer (containing the solar zenith angle)
     				if(sz.d[im].dtype == FMFLOAT) zsun = sz.d[im].floatarray[yc][xc]; //If data type is float
@@ -172,7 +166,7 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     		float zsun2;
 
     		/*
-    		 * Estimate solar zenith angle for each pixel.
+    		 * Estimate solar zenith angle for each pixel. (Old version)
     		 */
     		cart.row = yc;
     		cart.col = xc;
@@ -182,7 +176,7 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
     		tst = fmutc2tst(timeidsec, geop.lon);
     		zsun2 = fmsolarzenith(tst, geop);
 
-    		fprintf(stdout,"Solvinkel: %f %f\n", zsun, zsun2);
+    		fprintf(stdout,"Solvinkel: %f %f\n", zsun, zsun2); //Print new and old angle
 
 //
 //
@@ -396,4 +390,3 @@ int process_pixels4ice_new(fmdataset img, unsigned char *cmask[],
 
     return(FM_OK);
 }
-

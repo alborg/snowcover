@@ -40,18 +40,18 @@
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, DNMI/FOU, 28/04/1999
+ * ï¿½ystein Godï¿½y, DNMI/FOU, 28/04/1999
  *
  * MODIFIED:
- * Øystein Godøy, met.no/FOU, 27.09.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 27.09.2004
  * Modification for full Bayes approach started...
- * Øystein Godøy, met.no/FOU, 03.11.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 03.11.2004
  * Testing glm fit, , testing ended but code not removed
- * Øystein Godøy, METNO/FOU, 30.10.2006: Adapting code to results achieved
+ * ï¿½ystein Godï¿½y, METNO/FOU, 30.10.2006: Adapting code to results achieved
  * by Vibeke W. Thyness and Hanne Heiberg.
- * Øystein Godøy, METNO/FOU, 11.01.2007: Minor changes, added missing
+ * ï¿½ystein Godï¿½y, METNO/FOU, 11.01.2007: Minor changes, added missing
  * values due to 3A trouble.
- * Øystein Godøy, METNO/FOU, 02.04.2007: Adding 3B support based upon old
+ * ï¿½ystein Godï¿½y, METNO/FOU, 02.04.2007: Adding 3B support based upon old
  * training data.
  * Mari Anne Killie, METNO/FOU, 31.01.2008: small modification to
  * allow statcoeffstr being passed from avhrrice_pap.c down to probest.c
@@ -62,15 +62,15 @@
  *
  * CVS_ID:
  * $Id: pix_proc.c,v 1.10 2011-12-05 09:58:47 mariak Exp $
- */ 
+ */
 
 #include <fmsnowcover.h>
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
-int process_pixels4ice(fmio_img img, unsigned char *cmask[], 
-       unsigned char *lmask, nwpice nwp, datafield *probs, 
+int process_pixels4ice(fmio_img img, unsigned char *cmask[],
+       unsigned char *lmask, nwpice nwp, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof) {
-    
+
     char *where="process_pixels4ice";
     char what[FMSNOWCOVER_MSGLENGTH];
     int i, j, size;
@@ -102,7 +102,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
     ucs0.By = img.By;
     ucs0.iw = img.iw;
     ucs0.ih = img.ih;
-    
+
     timeid.fm_year = img.yy;
     timeid.fm_mon = img.mm;
     timeid.fm_mday = img.dd;
@@ -110,7 +110,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
     timeid.fm_min = img.mi;
     timeid.fm_sec = 0;
     timeidsec = tofmsec1970(timeid);
-    
+
     cpar.A1 = -999.;
     cpar.A2 = -999.;
     cpar.A3 = -999.;
@@ -174,11 +174,11 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 		}
 		continue;
 	    }
-    
+
 	    /*
 	     * Classification is only performed if the infrared channels
 	     * are available and only for the parts of the image were
-	     * the satellite has passed. 
+	     * the satellite has passed.
 	     */
 	    if ((img.image[3][i] == 0) && (img.image[4][i] == 0)) {
 		for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
@@ -223,8 +223,8 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 
 	    /*
 	     * Estimate geophysical parameters to be used in classification.
-	     * At present only a nighttime algoritm utilizing infrared 
-	     * satellite information which are converted to 
+	     * At present only a nighttime algoritm utilizing infrared
+	     * satellite information which are converted to
 	     * brightnesstemperatures. T3, T4 and T5 is the brightness-
 	     * temperatures of AVHRR channels 3, 4 and 5 respectively.
 	     * Dimension of temperatures are Kelvin.
@@ -241,7 +241,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 	    cpar.soz = zsun;
 	    cpar.saz = 0.;
 
-	    cpar.tdiff = 0.0;	  
+	    cpar.tdiff = 0.0;
 	    #ifdef FMSNOWCOVER_HAVE_LIBUSENWP
 	    cpar.tdiff = nwp.t0m[i]-cpar.T4;
             #endif
@@ -250,25 +250,25 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 	    if (cpar.daytime3b){
 	      cpar.A3b = fm_ch3brefl(cpar.T3,cpar.T4,cpar.soz,img.sa,doy);
 	    }
-	    
+
 
 	    if (i == 0) {
 	     fmlogmsg(where,"Using probest to estimate pixel probabilities...");
-	    } 
+	    }
 	    if (probest(cpar, &p, cof)) {
 		sprintf(what,
 			"Something went wrong in pixel processing of %d",i);
 		fmerrmsg(where,what);
 	    }
-	    
+
 	    /*
 	     * Adding this to prevent classification when probabilities do
 	     * not sum to 1.
 	     */
 	    if (p.pice+p.pfree+p.pcloud<0.95 || p.pice+p.pfree+p.pcloud>1.05){
-		continue; 
+		continue;
 	    }
- 
+
 	    /*
 	     * Also, if r3b1 is too large the probabilities can end up as
 	     * nan (not fixed by statement above). Trying this:
@@ -283,7 +283,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 
 	    /* Do not remove, I would like to test this further later...
 	     * It did not converge at first attempt...
-	     * Øystein Godøy, METNO/FOU, 12.04.2007 
+	     * ï¿½ystein Godï¿½y, METNO/FOU, 12.04.2007
 	    p = -8.48841152
 		+2.90687352*(cpar.A2/cpar.A1)
 		-8.06381521*(cpar.A3/cpar.A1)
@@ -312,7 +312,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 		-7.423763*(cpar.A3/cpar.A1);
 	    p = exp(x)/(1+exp(x));
 	    */
-	    
+
 	    if (p.pice < 0.0) {
 		class[i] = 0;
 	    } else if (p.pice < 0.05) {
@@ -372,7 +372,6 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 	}
     }
     fmlogmsg(where,"Now returning to main...");
-   
+
     return(FM_OK);
 }
-
