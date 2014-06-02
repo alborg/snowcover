@@ -48,8 +48,8 @@ libfmio_a_SOURCES = fmio_config.h \
 		    fm_readheader.c \
 		    fm_img2mihead.c \
 		    fm_readfmdataset.c \
-		    fm_readHLHDFdata.c
-
+		    fm_readHLHDFdata.c \
+		    fm_readdataMETSATswath.c 
 
 include_HEADERS =   fmio_config.h \
 		    fmio.h

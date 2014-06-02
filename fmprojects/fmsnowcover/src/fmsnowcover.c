@@ -54,7 +54,13 @@
  * $Id: fmsnowcover.c,v 1.12 2010-07-02 15:07:18 mariak Exp $
  */
 
-//./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa19_20140410_0540_26641_nr.aha
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa18_20140528_0442_46475_nr.aha
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa19_20140530_1128_27350_nr.aha
+/*
+ cover: 99.490280
+ cloudfree: 0.328656
+ notcovered: 0.005097
+ */
 
 #include <fmsnowcover.h>
 #include <unistd.h>
@@ -379,6 +385,7 @@ int main2(int argc, char *argv[]) {
      * MITIFF generation will be moved to a separate application in
      * time...
      */
+
     sprintf(clinfo.satellite,"%s",img.sa);
     clinfo.hour = img.ho;
     clinfo.minute = img.mi;
@@ -731,33 +738,32 @@ int putcoeffs(featstr *feat, dummystr dummies) {
 }
 
 float findcloudfree(datafield *d, int xsize, int ysize) {
-    char *where="findcloudfree";
-    int i, validpixels;
-    float cloudfree, notcovered;
+	char *where="findcloudfree";
+	int i, validpixels;
+	float cloudfree, notcovered;
 
-    for (i=0;i<FMSNOWCOVER_OLEVELS;i++) {
-	if (d[i].type != OSI_FLOAT) {
-	    fmerrmsg(where,"Data layer with wrong type %d.", i);
-	    exit(FM_OTHER_ERR);
+	for (i=0;i<FMSNOWCOVER_OLEVELS;i++) {
+		if (d[i].type != OSI_FLOAT) {
+			fmerrmsg(where,"Data layer with wrong type %d.", i);
+			exit(FM_OTHER_ERR);
+		}
 	}
-    }
-    notcovered = cloudfree = 0;
-    for (i=0;i<(xsize*ysize);i++) {
-	if (((float *) d[0].data)[i] == FMSNOWCOVERMISVAL_NOCOV) notcovered++;
-	if (((float *) d[0].data)[i] > ((float *) d[1].data)[i] > ((float *)
-	    d[2].data)[i]) {
-	    cloudfree++;
-	} else if (((float *) d[1].data)[i] > ((float *) d[0].data)[i] > ((float *) d[2].data)[i]) {
-	    cloudfree++;
+	notcovered = cloudfree = 0;
+	for (i=0;i<(xsize*ysize);i++) {
+		if (((float *) d[0].data)[i] == FMSNOWCOVERMISVAL_NOCOV) notcovered++;
+		if (((float *) d[0].data)[i] > ((float *) d[1].data)[i] > ((float *)d[2].data)[i]) {
+			cloudfree++;
+		} else if (((float *) d[1].data)[i] > ((float *) d[0].data)[i] > ((float *) d[2].data)[i]) {
+			cloudfree++;
+		}
 	}
-    }
 
-    notcovered /= (xsize*ysize);
-    cloudfree /= ((xsize*ysize)-notcovered);
-    printf(" cloudfree: %f\n", cloudfree);
-    printf(" notcovered: %f\n", notcovered);
+	notcovered /= (xsize*ysize);
+	cloudfree /= ((xsize*ysize)-notcovered);
+	printf(" cloudfree: %f\n", cloudfree);
+	printf(" notcovered: %f\n", notcovered);
 
-    return(cloudfree);
+	return(cloudfree);
 }
 
 /*

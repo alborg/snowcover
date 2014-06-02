@@ -130,7 +130,8 @@ am_libfmio_a_OBJECTS = libfmio_a-fm_aha_hd.$(OBJEXT) \
 	libfmio_a-fm_readheader.$(OBJEXT) \
 	libfmio_a-fm_img2mihead.$(OBJEXT) \
 	libfmio_a-fm_readfmdataset.$(OBJEXT) \
-	libfmio_a-fm_readHLHDFdata.$(OBJEXT)
+	libfmio_a-fm_readHLHDFdata.$(OBJEXT) \
+	libfmio_a-fm_readdataMETSATswath.$(OBJEXT)
 libfmio_a_OBJECTS = $(am_libfmio_a_OBJECTS)
 DEFAULT_INCLUDES = -I.
 depcomp = $(SHELL) $(top_srcdir)/config/depcomp
@@ -252,7 +253,8 @@ libfmio_a_SOURCES = fmio_config.h \
 		    fm_readheader.c \
 		    fm_img2mihead.c \
 		    fm_readfmdataset.c \
-		    fm_readHLHDFdata.c
+		    fm_readHLHDFdata.c \
+		    fm_readdataMETSATswath.c 
 
 include_HEADERS = fmio_config.h \
 		    fmio.h
@@ -361,6 +363,7 @@ include ./$(DEPDIR)/libfmio_a-fm_init_fmio_img.Po
 include ./$(DEPDIR)/libfmio_a-fm_readHLHDFdata.Po
 include ./$(DEPDIR)/libfmio_a-fm_readdata.Po
 include ./$(DEPDIR)/libfmio_a-fm_readdataMETSAT.Po
+include ./$(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Po
 include ./$(DEPDIR)/libfmio_a-fm_readfmdataset.Po
 include ./$(DEPDIR)/libfmio_a-fm_readheader.Po
 
@@ -559,6 +562,20 @@ libfmio_a-fm_readHLHDFdata.obj: fm_readHLHDFdata.c
 #	source='fm_readHLHDFdata.c' object='libfmio_a-fm_readHLHDFdata.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libfmio_a_CFLAGS) $(CFLAGS) -c -o libfmio_a-fm_readHLHDFdata.obj `if test -f 'fm_readHLHDFdata.c'; then $(CYGPATH_W) 'fm_readHLHDFdata.c'; else $(CYGPATH_W) '$(srcdir)/fm_readHLHDFdata.c'; fi`
+
+libfmio_a-fm_readdataMETSATswath.o: fm_readdataMETSATswath.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libfmio_a_CFLAGS) $(CFLAGS) -MT libfmio_a-fm_readdataMETSATswath.o -MD -MP -MF $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Tpo -c -o libfmio_a-fm_readdataMETSATswath.o `test -f 'fm_readdataMETSATswath.c' || echo '$(srcdir)/'`fm_readdataMETSATswath.c
+	$(am__mv) $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Tpo $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Po
+#	source='fm_readdataMETSATswath.c' object='libfmio_a-fm_readdataMETSATswath.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libfmio_a_CFLAGS) $(CFLAGS) -c -o libfmio_a-fm_readdataMETSATswath.o `test -f 'fm_readdataMETSATswath.c' || echo '$(srcdir)/'`fm_readdataMETSATswath.c
+
+libfmio_a-fm_readdataMETSATswath.obj: fm_readdataMETSATswath.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libfmio_a_CFLAGS) $(CFLAGS) -MT libfmio_a-fm_readdataMETSATswath.obj -MD -MP -MF $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Tpo -c -o libfmio_a-fm_readdataMETSATswath.obj `if test -f 'fm_readdataMETSATswath.c'; then $(CYGPATH_W) 'fm_readdataMETSATswath.c'; else $(CYGPATH_W) '$(srcdir)/fm_readdataMETSATswath.c'; fi`
+	$(am__mv) $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Tpo $(DEPDIR)/libfmio_a-fm_readdataMETSATswath.Po
+#	source='fm_readdataMETSATswath.c' object='libfmio_a-fm_readdataMETSATswath.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libfmio_a_CFLAGS) $(CFLAGS) -c -o libfmio_a-fm_readdataMETSATswath.obj `if test -f 'fm_readdataMETSATswath.c'; then $(CYGPATH_W) 'fm_readdataMETSATswath.c'; else $(CYGPATH_W) '$(srcdir)/fm_readdataMETSATswath.c'; fi`
 install-includeHEADERS: $(include_HEADERS)
 	@$(NORMAL_INSTALL)
 	test -z "$(includedir)" || $(MKDIR_P) "$(DESTDIR)$(includedir)"

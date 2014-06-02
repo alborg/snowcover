@@ -245,6 +245,7 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 	    #ifdef FMSNOWCOVER_HAVE_LIBUSENWP
 	    cpar.tdiff = nwp.t0m[i]-cpar.T4;
             #endif
+//	    fprintf(stdout,"Data: %f %f %f ",cpar.tdiff, nwp.t0m[i], cpar.T4);
 
 	    /* Estimate the reflective part of daytime channel 3b */
 	    if (cpar.daytime3b){

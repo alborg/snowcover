@@ -57,7 +57,9 @@ HEADER_FILES1 = \
   getnwp.h
 SRC_FILES1 = \
   fmsnowcover.c \
+  fmsnowcover_swath.c \
   pix_proc.c \
+  pix_proc_swath.c \
   probest.c \
   normalpdf.c \
   getnwp.c \

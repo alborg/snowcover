@@ -38,17 +38,17 @@
  * Bug fix, updated version from DMI.
  * Steinar Eastwood, met.no, 23.02.2004  
  * Checking byte order on METSAT files and do byte swap if necessary.
- * Øystein Godøy, met.no, 12.03.2004  
+ * ï¿½ystein Godï¿½y, met.no, 12.03.2004  
  * Added some comments and note possible conflict/duplicate on the use of
  * julday... 
- * Øystein Godøy, met.no/FOU, 29.03.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 29.03.2004
  * exit -> return + messages
- * Øystein Godøy, met.no/FOU, 30.09.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 30.09.2004
  * Removed some memory leaks that appeared when the routines were called
  * several times...
  * Steinar Eastwood, met.no, 18.10.2006  
  * Added filling orbit_no in readheaderMETSAT and readdataMETSAT.
- * Øystein Godøy, METNO/FOU, 16.10.2006
+ * ï¿½ystein Godï¿½y, METNO/FOU, 16.10.2006
  * Modified name space for libfmio.
  * Mari Anne Killie, METNO/FOU, 08.05.2009
  * Added Metop
@@ -336,6 +336,9 @@ int fm_readMETSATdata(char *filename, fmio_img *h) {
     h->By=(float)ha.area_extent[3]*0.001;
     h->Ax=(float)ha.xscale*0.001;
     h->Ay=(float)ha.yscale*0.001;
+
+//    fprintf(stdout,"UCS: %f %f %f %f\n",h->Ax,h->Ay,h->Bx,h->By);
+
     h->z = 0;
     for (i=0;i<ha.layers;i++) {
         if (strncmp(ha.datatypes[i],"data",4)==0) {

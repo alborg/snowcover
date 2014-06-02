@@ -49,6 +49,9 @@
  * landmask + surface. d34 removed.
  * Mari Anne Killie, METNO/FOU, 02.07.2010: replacing
  * store_mitiff_result with store_snow.
+ * Anette Lauen Borg, METNO/Metklim, 05.2014: Adapt to swath input files from PPS
+ * Input files: Data file, physiography file, sunsatangle file (all from PPS) + NWP file (hirlam12)
+ * Program reads data from noaa/avhrr and npp/viirs instruments. Instrument dependent part in pix_proc_swath.c! (process_pixels4ice_swath)
  *
  * CVS_ID:
  * $Id: fmsnowcover.c,v 1.12 2010-07-02 15:07:18 mariak Exp $
@@ -58,8 +61,10 @@
 
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa19_20140520_0644_27205_satproj_00000_02106_avhrr.h5 -l noaa19_20140520_0644_27205_satproj_00000_02106_physiography.h5 -s noaa19_20140520_0644_27205_satproj_00000_02106_sunsatangles.h5
 
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa18_20140528_0442_46474_satproj_00000_04670_avhrr.h5 -l noaa18_20140528_0442_46474_satproj_00000_04670_physiography.h5 -s noaa18_20140528_0442_46474_satproj_00000_04670_sunsatangles.h5
 
-//Phys file name: S_NWC_physiography_npp_09364_20130818T1055446Z_20130818T1109575Z.h5
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa19_20140530_1128_27349_satproj_00000_04623_avhrr.h5 -l noaa19_20140530_1128_27349_satproj_00000_04623_physiography.h5 -s noaa19_20140530_1128_27349_satproj_00000_04623_sunsatangles.h5
+
 
 #include <fmsnowcover.h>
 #include <unistd.h>
@@ -67,6 +72,7 @@
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
 int main(int argc, char *argv[]) {
+
 
     char *where="fmsnowcover_swath";
     char what[FMSNOWCOVER_MSGLENGTH];
@@ -76,7 +82,6 @@ int main(int argc, char *argv[]) {
     short status;
     unsigned int size;
     char fname[100],lname[120],sname[120],datestr[25];
-    char pname[4];
     char *lmaskf, *opfn1, *opfn2, *opfn3;
     char *infile, *cfgfile, *coffile, *sunzenf;
     char *fnwc[3]={"h12sf","h12pl","h12ml"};
@@ -100,6 +105,7 @@ int main(int argc, char *argv[]) {
 
     statcoeffstr coeffs = {{{0}}}; //fmsnowcover.h
     int image_type;
+
 
 
     /*
@@ -209,13 +215,13 @@ int main(int argc, char *argv[]) {
     if (init_fmdataset(&img)) { //Initialize struct img (fmdataset)
     	fmerrmsg(where,"Could not initialize fmdataset");
     	exit(FM_OTHER_ERR);
-
     }
 
     if(fm_readMETSATdata_swath(infile, &img)){ //Read data into struct img
     	fmerrmsg(where,"Could not open file...\n");
     	exit(FM_IO_ERR);
     }
+//    fprintf(stdout,"NWP: %f %f %f %f \n",img.h.,img.h.ucs.Ay,img.h.ucs.Bx,img.h.ucs.By);
 
 
     /*
@@ -274,6 +280,7 @@ int main(int argc, char *argv[]) {
     	exit(FM_IO_ERR);
     }
 #endif
+
 
 
     /*
@@ -372,6 +379,7 @@ int main(int argc, char *argv[]) {
 	exit(FM_MEMALL_ERR);
     }
 
+
     fmlogmsg(where,"Estimating ice probability");
 
     //Input parameters of process_pixels4ice_swath: data struct, cmask?, landmask struct, model data (NWP) struct, sun zenith angles struct, struct with info,
@@ -384,14 +392,15 @@ int main(int argc, char *argv[]) {
 				  ice.d, classed, cat, 2, coeffs);
     }
 
+    //Check status of result
     if ((status) && (status != 10)) {
 	sprintf(what,"Something failed while processing pixels of %s",infile);
 	fmerrmsg(where,what);
     } else if (status == 10) {
         fmlogmsg(where,
-	   "Finished estimating ice probability for temp. reduced tile area");
+	   "Finished estimating ice probability for swath");
     } else {
-        fmlogmsg(where,"Finished estimating ice probability");
+        fmlogmsg(where,"Finished estimating ice probability for swath");
     }
 
 
@@ -405,77 +414,79 @@ int main(int argc, char *argv[]) {
     if (lm.d != NULL) {
     	free_fmdataset(&lm);
     }
-//
-//    /*
-//     * Write results to files, HDF5 file for internal use and TIFF 6.0
-//     * (MITIFF) file for visual presentation on Internet/DIANA etc.
-//     *
-//     * MITIFF generation will be moved to a separate application in
-//     * time...
-//     */
-//    sprintf(clinfo.satellite,"%s",img.sa);
-//    clinfo.hour = img.ho;
-//    clinfo.minute = img.mi;
-//    clinfo.day = img.dd;
-//    clinfo.month = img.mm;
-//    clinfo.year = img.yy;
-//    clinfo.zsize = 1;
-//    clinfo.xsize = img.iw;
-//    clinfo.ysize = img.ih;
-//    clinfo.Ax = img.Ax;
-//    clinfo.Ay = img.Ay;
-//    clinfo.Bx = img.Bx;
-//    clinfo.By = img.By;
-//
-//    opfn1 = (char *) malloc(FILELEN+5);
-//    if (!opfn1) exit(FM_IO_ERR);
-//    sprintf(opfn1,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.hdf5",
-//	cfg.productpath,pname,
-//	img.yy, img.mm, img.dd, img.ho, img.mi);
-//    sprintf(what,"Creating output file: %s", opfn1);
-//    fmlogmsg(where,what);
-//    status = store_hdf5_product(opfn1,ice);
-//    if (status != 0) {
-//	sprintf(what,"Trouble processing: %s",infile);
-//	fmerrmsg(where,what);
-//    }
-//
-//    opfn2 = (char *) malloc(FILELEN+5);
-//    if (!opfn2) exit(FM_IO_ERR);
-//    sprintf(opfn2,"%s/fmsnow_%s_%4d%02d%02d%02d%02d.mitiff",
-//	cfg.productpath,pname,
-//	img.yy, img.mm, img.dd, img.ho, img.mi);
-//    sprintf(what,"Creating output file: %s", opfn2);
-//    fmlogmsg(where,what);
-//    image_type = 0;
-//    store_snow(opfn2,classed,clinfo,image_type);
-//
-//
-//    /*Can be helpful when trying to improve the product*/
-//    /*Must make some changes in subroutines as well. */
-//    opfn3 = (char *) malloc(FILELEN+5);
-//    if (!opfn3) exit(FM_IO_ERR);
-//    sprintf(opfn3,"%s/fmsnow_cat_%s_%4d%02d%02d%02d%02d.mitiff",
-//	cfg.productpath,pname,
-//	img.yy, img.mm, img.dd, img.ho, img.mi);
-//    sprintf(what,"Creating output file: %s", opfn3);
-//    fmlogmsg(where,what);
-//    image_type = 1;
-//    store_snow(opfn3,cat,clinfo,image_type);
-//
-//
-//    /*
-//     * Add information on processed scenes, time and area
-//     * identifications as well as valid image data coverage within the
-//     * tile and estimated cloud free coverage of the scene.
-//     */
-//    printf(" cover: %f\n",img.cover);
-//    cloudfree = findcloudfree(ice.d,img.iw,img.ih);
-//    fmsec19702isodatetime(tofmsec1970(reftime), datestr);
-//    if (updateindexfile(cfg.indexfile,fname,opfn1,datestr,pname,img.cover,cloudfree)) {
+
+    /*
+     * Write results to files, HDF5 file for internal use and TIFF 6.0
+     * (MITIFF) file for visual presentation on Internet/DIANA etc.
+     *
+     * MITIFF generation will be moved to a separate application in
+     * time...
+     */
+    sprintf(clinfo.satellite,"%s",img.h.platform_name);
+    clinfo.hour = img.h.valid_time.fm_hour;
+    clinfo.minute = img.h.valid_time.fm_min;
+    clinfo.day = img.h.valid_time.fm_mday;
+    clinfo.month = img.h.valid_time.fm_mon;
+    clinfo.year = img.h.valid_time.fm_year;
+    clinfo.zsize = 1;
+    clinfo.xsize = img.h.xsize;
+    clinfo.ysize = img.h.ysize;
+    clinfo.Ax = img.h.ucs.Ax;
+    clinfo.Ay = img.h.ucs.Ay;
+    clinfo.Bx = img.h.ucs.Bx;
+    clinfo.By = img.h.ucs.By;
+
+    fmlogmsg(where,"Write to product files");
+
+    opfn1 = (char *) malloc(FILELEN+5);
+    if (!opfn1) exit(FM_IO_ERR);
+    sprintf(opfn1,"%s/fmsnow_%4d%02d%02d%02d%02d.hdf5",
+	cfg.productpath,
+	clinfo.year, clinfo.month, clinfo.day, clinfo.hour, clinfo.minute);
+    sprintf(what,"Creating output file: %s", opfn1);
+    fmlogmsg(where,what);
+    status = store_hdf5_product(opfn1,ice);
+    if (status != 0) {
+	sprintf(what,"Trouble processing: %s",infile);
+	fmerrmsg(where,what);
+    }
+
+    opfn2 = (char *) malloc(FILELEN+5);
+    if (!opfn2) exit(FM_IO_ERR);
+    sprintf(opfn2,"%s/fmsnow_%4d%02d%02d%02d%02d.mitiff",
+	cfg.productpath,
+	clinfo.year, clinfo.month, clinfo.day, clinfo.hour, clinfo.minute);
+    sprintf(what,"Creating output file: %s", opfn2);
+    fmlogmsg(where,what);
+    image_type = 0;
+    store_snow(opfn2,classed,clinfo,image_type);
+
+
+    /*Can be helpful when trying to improve the product*/
+    /*Must make some changes in subroutines as well. */
+    opfn3 = (char *) malloc(FILELEN+5);
+    if (!opfn3) exit(FM_IO_ERR);
+    sprintf(opfn3,"%s/fmsnow_cat_%4d%02d%02d%02d%02d.mitiff",
+	cfg.productpath,
+	clinfo.year, clinfo.month, clinfo.day, clinfo.hour, clinfo.minute);
+    sprintf(what,"Creating output file: %s", opfn3);
+    fmlogmsg(where,what);
+    image_type = 1;
+    store_snow(opfn3,cat,clinfo,image_type);
+
+
+    /*
+     * Add information on processed scenes, time and area
+     * identifications as well as valid image data coverage within the
+     * tile and estimated cloud free coverage of the scene.
+     */
+
+    printf(" cover: %f\n",cover);
+    cloudfree = findcloudfree(ice.d,img.h.xsize,img.h.ysize);
+    fmsec19702isodatetime(tofmsec1970(reftime), datestr);
+//    if (updateindexfile(cfg.indexfile,fname,opfn1,datestr,cover,cloudfree)) {
 //	fmerrmsg(where,"Could not update %s", cfg.indexfile);
 //    }
-
 
     fprintf(stdout," ================================================\n");
     free(opfn1);

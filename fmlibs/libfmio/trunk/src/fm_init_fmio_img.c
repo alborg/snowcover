@@ -21,7 +21,7 @@
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, METNO/FOU, 26.04.2007 
+ * ï¿½ystein Godï¿½y, METNO/FOU, 26.04.2007 
  *
  * MODIFIED:
  * NA
@@ -90,11 +90,11 @@ int fm_init_fmio_img(fmio_img *h) {
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, met.no/FOU, xx.xx.xxxx
+ * ï¿½ystein Godï¿½y, met.no/FOU, xx.xx.xxxx
  *
  * MODIFIED:
  * Soren Andersen DMI August 2001: Added freeing of h->track
- * Øystein Godøy, METNO/FOU, 03.07.2007 
+ * ï¿½ystein Godï¿½y, METNO/FOU, 03.07.2007 
  *
  * ID:
  * $Id$
@@ -103,7 +103,7 @@ int fm_init_fmio_img(fmio_img *h) {
 int fm_clear_fmio_img(fmio_img *h) {
     int i;
 
-    if (h->track) {
+    if (h->track != NULL) {
         free(h->track);
         h->track = NULL;
 	h->numtrack = 0;

@@ -120,15 +120,19 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
-    	//Read actual data content (the channel/image data)
+    	//Read actual data content (the channel/image data), variable number of channels/images
     	if (fm_extractimagedata(file, fd)) {
     		fmerrmsg(where,"Could not decode image data");
     		return(FM_IO_ERR);
     	}
 
-    	//Check instrument
+    	//Check which satellite/instrument
     	if (strstr(fd->h.platform_name,"noaa") || strstr(fd->h.platform_name,"npp")) {
-    		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd->h.platform_name, fd->h.sensor_name);
+    		if (strstr(fd->h.platform_name,"noaa")) {
+    			char name[6]; strncpy(name,fd->h.platform_name,6);
+    			sprintf(fd->h.platform_name, "NOAA-%s",&(name[4])); //Re-spell name (e.g. NOAA-18)
+    		}
+    		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd->h.platform_name,fd->h.sensor_name);
     	}    else { fmerrmsg(where, "Do not recognize instrument, bailing out!"); return(FM_OTHER_ERR); }
 
     }
@@ -152,9 +156,11 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	}
 
 
+    	//Set data space sizes
     	dsd_d[0] = fd->h.xsize;
     	dsd_d[1] = fd->h.ysize;
-    	fd->h.layers = 1; //There is only one struct data field that we want to read into from this file.
+    	fd->h.layers = 1; //There is only one data set (fracofland) in this file that we want to read into a datafield struct.
+
 
     	dataset = H5Dopen(file,"fracofland"); //Open dataset "fracofland"
     	if(dataset >= 0) { //Physiography file
@@ -470,9 +476,15 @@ int fm_create_hdf5_vlstring(hid_t *str) {
  */
 int fm_extractwhere(hid_t grp, fmheader *h) {
     char *where="fm_extractwhere";
-    hid_t attr_id;
+    hid_t attr_id, grp_id, grp_id2;
     hid_t str;
     herr_t status;
+    float gain, offset;
+    hid_t dataspace, dataset;
+    H5A_info_t ainfo;
+    hsize_t dsd_d[2];
+    int i, j, k, *mydata;
+
 
     /*
      * Decode size (rows and columns)
@@ -545,6 +557,238 @@ int fm_extractwhere(hid_t grp, fmheader *h) {
                 "Could not close attribute yscale, bailing out!");
         return(FM_IO_ERR);
     }
+
+
+    /*
+     * Decode position of upper left corner
+     * Read latitude
+     */
+    grp_id = H5Gopen(grp,"lat");
+    if (grp_id < 0) {fmlogmsg(where,"Could not find group LAT in group WHERE."); return(FM_IO_ERR);}
+
+    grp_id2 = H5Gopen(grp_id,"what");
+    if (grp_id2 < 0) {
+    	fmerrmsg(where,
+    			"Could not find group what in LAT");
+    	return(FM_IO_ERR);
+    };
+
+    attr_id = H5Aopen_name(grp_id2,"gain");
+    if (attr_id < 0) {
+    	fmerrmsg(where,"Could not open attribute gain.");
+    	return(FM_IO_ERR);
+    }
+    status = H5Aread(attr_id,H5T_NATIVE_FLOAT,&gain);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not read attribute gain.");
+    	return(FM_IO_ERR);
+    }
+    status = H5Aclose(attr_id);
+    if (status < 0) {
+    	fmerrmsg(where,
+    			"Could not close attribute gain, bailing out!");
+    	return(FM_IO_ERR);
+    }
+    attr_id = H5Aopen_name(grp_id2,"offset");
+    if (attr_id < 0) {
+    	fmerrmsg(where,"Could not open attribute offset.");
+    	return(FM_IO_ERR);
+    }
+    status = H5Aread(attr_id,H5T_NATIVE_FLOAT,&offset);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not read attribute offset.");
+    	return(FM_IO_ERR);
+    }
+    status = H5Aclose(attr_id);
+    if (status < 0) {
+    	fmerrmsg(where,
+    			"Could not close attribute offset, bailing out!");
+    	return(FM_IO_ERR);
+    }
+
+    status = H5Gclose(grp_id2);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not close group WHAT");
+    	return(FM_IO_ERR);
+    };
+
+    /*
+     * Read the actual data
+     */
+    dsd_d[0] = h->xsize;
+    dsd_d[1] = h->ysize;
+    dataspace = H5Screate_simple(2, dsd_d, NULL);
+    if (dataspace < 0) {
+    	fmerrmsg(where,"Could not create dataspace");
+    	return(FM_IO_ERR);
+    };
+
+    dataset = H5Dopen(grp_id,"data");
+
+    if (dataset < 0) {
+    	fmerrmsg(where,"Could not open dataset data [%d]", dataset);
+    	return(FM_IO_ERR);
+    };
+
+    if (fmalloc_int_vector(&mydata, (h->xsize*h->ysize))) {
+    	fmerrmsg(where,"Could not allocate data array");
+    	return(FM_MEMALL_ERR);
+    }
+
+    status = H5Dread(dataset,
+    		H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+    		mydata);
+
+    if (status < 0) {
+    	fmerrmsg(where,"Could not read data field");
+    	return(FM_IO_ERR);
+    };
+
+    status = H5Dclose(dataset);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not close dataset in HDF5 file");
+    	return(FM_IO_ERR);
+    };
+    status = H5Sclose(dataspace);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not close field dataspace in HDF5 file");
+    	return(FM_IO_ERR);
+    };
+
+    h->ucs.Bx = mydata[0]*gain + offset;
+    float delta1 = (mydata[1]*gain + offset) - (mydata[0]*gain + offset);
+
+
+    if (fmfree_int_vector(mydata)) {
+    	fmerrmsg(where,"Could not free mydata");
+    	return(FM_MEMALL_ERR);
+    }
+
+
+    status = H5Gclose(grp_id);
+    if (status < 0) {
+    	fmerrmsg(where,"Could not close group LAT");
+    	return(FM_IO_ERR);
+    };
+
+    /*
+     * Read longitude
+     */
+
+    grp_id = H5Gopen(grp,"lon");
+        if (grp_id < 0) {fmlogmsg(where,"Could not find group LAT in group WHERE."); return(FM_IO_ERR);}
+
+        grp_id2 = H5Gopen(grp_id,"what");
+        if (grp_id2 < 0) {
+        	fmerrmsg(where,
+        	    			"Could not find group what in LON");
+        	    	return(FM_IO_ERR);
+        };
+
+        attr_id = H5Aopen_name(grp_id2,"gain");
+        if (attr_id < 0) {
+        	fmerrmsg(where,"Could not open attribute gain.");
+        	return(FM_IO_ERR);
+        }
+        status = H5Aread(attr_id,H5T_NATIVE_FLOAT,&gain);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not read attribute gain.");
+        	return(FM_IO_ERR);
+        }
+        status = H5Aclose(attr_id);
+        if (status < 0) {
+        	fmerrmsg(where,
+        			"Could not close attribute gain, bailing out!");
+        	return(FM_IO_ERR);
+        }
+        attr_id = H5Aopen_name(grp_id2,"offset");
+        if (attr_id < 0) {
+        	fmerrmsg(where,"Could not open attribute offset.");
+        	return(FM_IO_ERR);
+        }
+        status = H5Aread(attr_id,H5T_NATIVE_FLOAT,&offset);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not read attribute offset.");
+        	return(FM_IO_ERR);
+        }
+        status = H5Aclose(attr_id);
+        if (status < 0) {
+        	fmerrmsg(where,
+        			"Could not close attribute offset, bailing out!");
+        	return(FM_IO_ERR);
+        }
+
+        status = H5Gclose(grp_id2);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not close group WHAT");
+        	return(FM_IO_ERR);
+        };
+
+        /*
+         * Read the actual data
+         */
+        dsd_d[0] = h->xsize;
+        dsd_d[1] = h->ysize;
+        dataspace = H5Screate_simple(2, dsd_d, NULL);
+        if (dataspace < 0) {
+        	fmerrmsg(where,"Could not create dataspace");
+        	return(FM_IO_ERR);
+        };
+
+        dataset = H5Dopen(grp_id,"data");
+
+        if (dataset < 0) {
+        	fmerrmsg(where,"Could not open dataset data [%d]", dataset);
+        	return(FM_IO_ERR);
+        };
+
+        if (fmalloc_int_vector(&mydata, (h->xsize*h->ysize))) {
+        	fmerrmsg(where,"Could not allocate data array");
+        	return(FM_MEMALL_ERR);
+        }
+
+        status = H5Dread(dataset,
+        		H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
+        		mydata);
+
+        if (status < 0) {
+        	fmerrmsg(where,"Could not read data field");
+        	return(FM_IO_ERR);
+        };
+
+        status = H5Dclose(dataset);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not close dataset in HDF5 file");
+        	return(FM_IO_ERR);
+        };
+        status = H5Sclose(dataspace);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not close field dataspace in HDF5 file");
+        	return(FM_IO_ERR);
+        };
+
+        h->ucs.By = mydata[0]*gain + offset;
+        float delta2 = mydata[1]-mydata[0];
+
+        if (fmfree_int_vector(mydata)) {
+        	fmerrmsg(where,"Could not free mydata");
+        	return(FM_MEMALL_ERR);
+        }
+
+
+        status = H5Gclose(grp_id);
+        if (status < 0) {
+        	fmerrmsg(where,"Could not close group LAT");
+        	return(FM_IO_ERR);
+        };
+
+
+        h->ucs.Ax = h->nominal_grid_resolution_x*0.001;
+        h->ucs.Ay = h->nominal_grid_resolution_y*0.001;
+
+//
+//        fprintf(stdout,"UCS: %f %f %f %f %f %f\n",h->ucs.Ax,h->ucs.Ay,h->ucs.Bx,h->ucs.By,delta1,delta2);
+
 
     return(FM_OK);
 }

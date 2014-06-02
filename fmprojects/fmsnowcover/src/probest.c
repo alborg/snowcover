@@ -26,15 +26,15 @@
  * NA
  *
  * AUTHOR:
- * Øystein Godøy, met.no/FOU, 28.09.2004
+ * ï¿½ystein Godï¿½y, met.no/FOU, 28.09.2004
  *
  * MODIFIED:
- * Øystein Godøy, met.no/FOU, 18.11.2004: Adapted for Ch3a and normal
+ * ï¿½ystein Godï¿½y, met.no/FOU, 18.11.2004: Adapted for Ch3a and normal
  * distribution...
- * Øystein Godøy, METNO/FOU, 30.10.2006: Added the function Hanne Heiberg
+ * ï¿½ystein Godï¿½y, METNO/FOU, 30.10.2006: Added the function Hanne Heiberg
  * have been using as probest_hanneh, changed function interface.
- * Øystein Godøy, METNO/FOU, 11.01.2007: Changed some names.
- * Øystein Godøy, METNO/FOU, 02.04.2007: Added 3B support.
+ * ï¿½ystein Godï¿½y, METNO/FOU, 11.01.2007: Changed some names.
+ * ï¿½ystein Godï¿½y, METNO/FOU, 02.04.2007: Added 3B support.
  * Mari Anne Killie, METNO/FOU, 31.01.2008: coefficients are removed
  * and placed in ASCII file. Struct of type statcoeffstr now contains
  * the coeffs., and is passed down from avhrrice_pap. Function
@@ -102,6 +102,7 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     /* } */
 
 
+
     /*Ice and snow*/
     pa1gi = findprob( cof.ice.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"ice a1");
     pa1gs = findprob( cof.snow.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"snow a1");
@@ -116,6 +117,7 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     }
     pdtgi = findprob( cof.ice.dt, cpa.tdiff, "ice dt" );
     pdtgs = findprob( cof.snow.dt, cpa.tdiff, "snow dt" );
+//    fprintf(stdout,"probest: %f %f %f %f ",pr21gi,pr3b1gi,pa1gi,pdtgi);
     
     /*Clouds*/
     pa1gc = findprob( cof.cloud.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"cloud a1");
@@ -126,6 +128,7 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
 	pr3a1gc = findprob( cof.cloud.r3a1, r3a1, "cloud r3a1" );
     }
     pdtgc = findprob( cof.cloud.dt, cpa.tdiff, "cloud dt");
+//    fprintf(stdout,"%f %f %f %f ",pr21gc,pr3b1gc,pa1gc,pdtgc);
 
     /*Land and water*/
     pa1gl=findprob( cof.land.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"land a1");
@@ -141,7 +144,7 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     }
     pdtgl = findprob( cof.land.dt, cpa.tdiff, "land dt" );
     pdtgw = findprob( cof.water.dt, cpa.tdiff,"water dt" );
-    
+//    fprintf(stdout,"%f %f %f %f ",pr21gw,pr3b1gw,pa1gw,pdtgw);
 
     /*
      * Use Bayes theorem and estimate probability for ice.
@@ -170,6 +173,7 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     /*pr3b1gi= pr3b1gs= pr3b1gc= pr3b1gl= pr3b1gw= 1.;*/
     /*pr3a1gi= pr3a1gs= pr3a1gc= pr3a1gl= pr3a1gw= 1.;*/
     /*pdtgi  = pdtgs  = pdtgc  = pdtgl  = pdtgw  = 1.;*/
+
 
     if (cpa.lmask <= FMSNOWSEA) { /*Water: use classes sea ice/water/cloud*/
       if (cpa.daytime3b) {
