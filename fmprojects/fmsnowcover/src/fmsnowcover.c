@@ -56,11 +56,7 @@
 
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa18_20140528_0442_46475_nr.aha
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover.txt -i avhrr_noaa19_20140530_1128_27350_nr.aha
-/*
- cover: 99.490280
- cloudfree: 0.328656
- notcovered: 0.005097
- */
+
 
 #include <fmsnowcover.h>
 #include <unistd.h>

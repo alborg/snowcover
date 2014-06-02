@@ -65,6 +65,12 @@
 
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa19_20140530_1128_27349_satproj_00000_04623_avhrr.h5 -l noaa19_20140530_1128_27349_satproj_00000_04623_physiography.h5 -s noaa19_20140530_1128_27349_satproj_00000_04623_sunsatangles.h5
 
+//./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa18_20140602_0527_46545_satproj_00000_03775_avhrr.h5 -l noaa18_20140602_0527_46545_satproj_00000_03775_physiography.h5 -s noaa18_20140602_0527_46545_satproj_00000_03775_sunsatangles.h5
+//
+//cover: 99.496819
+// cloudfree: 0.234591
+// notcovered: 0.002901
+
 
 #include <fmsnowcover.h>
 #include <unistd.h>
@@ -184,7 +190,7 @@ int main(int argc, char *argv[]) {
 
     //Sun zenith angle file
         sunzenf = (char *) malloc(FILELEN);
-        if (!lmaskf) {
+        if (!sunzenf) {
         	fprintf(stderr,"%s\n"," Trouble processing:");
         	fprintf(stderr,"%s\n",infile);
         	fmerrmsg(where,"Could not allocate memory for sunzenf");
@@ -221,8 +227,6 @@ int main(int argc, char *argv[]) {
     	fmerrmsg(where,"Could not open file...\n");
     	exit(FM_IO_ERR);
     }
-//    fprintf(stdout,"NWP: %f %f %f %f \n",img.h.,img.h.ucs.Ay,img.h.ucs.Bx,img.h.ucs.By);
-
 
     /*
      * Check the number of valid pixels
@@ -232,8 +236,8 @@ int main(int argc, char *argv[]) {
     size = img.h.xsize*img.h.ysize;
     int valpix = 0;
     int i,j;
-    for (i=0;i<img.h.xsize;i++) {
-    	for(j=0;j<img.h.ysize;j++) {
+    for (i=0;i<img.h.ysize;i++) {
+    	for(j=0;j<img.h.xsize;j++) {
     		if ((img.d)->intarray[i][j] == (img.d)[0].missingdatavalue || (img.d)->intarray[i][j] == (img.d)[0].nodatavalue) continue; //If data value = default value (no data), skip to next data point
     		valpix++; //... or, if valid data value, add to valpix.
     	}
@@ -245,6 +249,7 @@ int main(int argc, char *argv[]) {
     			"The percentage coverage (%.0f%) of this scene is too small for further processing.",cover);
     	exit(FM_OK);
     }
+
 
     //Transfer info
     printf(" Satellite: %s\n", img.h.platform_name);
@@ -262,7 +267,6 @@ int main(int argc, char *argv[]) {
     refucs.By = (double) img.h.ucs.By;
     refucs.iw =  img.h.xsize;
     refucs.ih = img.h.ysize;
-
 
     /*
      * Get NWP data (model)...
@@ -299,6 +303,7 @@ int main(int argc, char *argv[]) {
     		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read land/sea mask");
     		return(FM_IO_ERR);
     	}
+
     }
     else {
     	fmlogmsg(where,"No landmask is available, continuing without.");

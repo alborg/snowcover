@@ -117,7 +117,6 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     }
     pdtgi = findprob( cof.ice.dt, cpa.tdiff, "ice dt" );
     pdtgs = findprob( cof.snow.dt, cpa.tdiff, "snow dt" );
-//    fprintf(stdout,"probest: %f %f %f %f ",pr21gi,pr3b1gi,pa1gi,pdtgi);
     
     /*Clouds*/
     pa1gc = findprob( cof.cloud.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"cloud a1");
@@ -128,7 +127,6 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
 	pr3a1gc = findprob( cof.cloud.r3a1, r3a1, "cloud r3a1" );
     }
     pdtgc = findprob( cof.cloud.dt, cpa.tdiff, "cloud dt");
-//    fprintf(stdout,"%f %f %f %f ",pr21gc,pr3b1gc,pa1gc,pdtgc);
 
     /*Land and water*/
     pa1gl=findprob( cof.land.a1, cpa.A1/cos(fmdeg2rad(cpa.soz)),"land a1");
@@ -144,7 +142,6 @@ int probest(pinpstr cpa, probstr *p, statcoeffstr cof) {
     }
     pdtgl = findprob( cof.land.dt, cpa.tdiff, "land dt" );
     pdtgw = findprob( cof.water.dt, cpa.tdiff,"water dt" );
-//    fprintf(stdout,"%f %f %f %f ",pr21gw,pr3b1gw,pa1gw,pdtgw);
 
     /*
      * Use Bayes theorem and estimate probability for ice.

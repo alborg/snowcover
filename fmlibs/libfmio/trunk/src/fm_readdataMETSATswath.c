@@ -93,7 +93,6 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
-
     	//Read "what" group data (date, time, number of layers (channels/images))
     	grp = H5Gopen(file,"what");
     	if (grp < 0) {fmlogmsg(where,"Could not find group WHAT."); return(FM_IO_ERR);}
@@ -120,11 +119,13 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		return(FM_IO_ERR);
     	};
 
+
     	//Read actual data content (the channel/image data), variable number of channels/images
     	if (fm_extractimagedata(file, fd)) {
     		fmerrmsg(where,"Could not decode image data");
     		return(FM_IO_ERR);
     	}
+
 
     	//Check which satellite/instrument
     	if (strstr(fd->h.platform_name,"noaa") || strstr(fd->h.platform_name,"npp")) {
@@ -1107,6 +1108,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
             return(FM_IO_ERR);
         }
 
+
         /*
          * Open subgroup and read codes for no or missing data, decode
          * information etc.
@@ -1283,6 +1285,7 @@ int (fm_extractimagedata(hid_t file_id, fmdataset *d)) {
             return(FM_IO_ERR);
         };
     }
+
     /*
      * Extract the geographical positions from two datasets included in
      * the main where group read earlier. remember that these layers has
@@ -1580,7 +1583,8 @@ int fmget_hdf5_string_att(hid_t grp_id, char *attname, char *outbuf) {
         fmerrmsg(where,"Could not get info on attribute");
         return(FM_IO_ERR);
     }
-    if (fm_create_hdf5_string(&str, ainfo.data_size)) {
+
+    if (fm_create_hdf5_string(&str, ainfo.data_size+1)) {
         fmerrmsg(where,"Could not create str");
         return(FM_OTHER_ERR);
     }
@@ -1733,6 +1737,8 @@ int fm_extractppsdata(hid_t file_id, fmdataset *d) {
                 fmerrmsg(where,"Could not read string attribute");
                 return(FM_IO_ERR);
             }
+
+
             for (j=0;j<d->h.ysize; j++) {
                 for (l=0;l<d->h.xsize; l++) {
                     ((d->d)[k]).bytearray[j][l] = mydata[fmivec(l, j, d->h.xsize)];

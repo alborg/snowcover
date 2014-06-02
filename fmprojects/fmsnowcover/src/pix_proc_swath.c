@@ -90,7 +90,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     fmgeopos geop;
     fmtime timeid;
     fmsec1970 timeidsec, tst;
-    float zsun;
+    float zsun, zsun2;
     int doy;
     fmscale calib; /*will contain gain and intercept values*/
 
@@ -133,15 +133,17 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
 
     int channel1=-1, channel2=-1, channel3a=-1, channel3b=-1, channel4=-1, channel5=-1;
     int c;
-    for(c=0;c<img.h.layers;c++) { //Find and identify channels on avhrr or viirs
+    for(c=0;c<img.h.layers;c++) { //Find the various channels on avhrr or viirs
     	if(strstr(img.d[c].description,"ch1") || strstr(img.d[c].description,"M05")) channel1 = c;
     	if(strstr(img.d[c].description,"ch2") || strstr(img.d[c].description,"M07")) channel2 = c;
     	if(strstr(img.d[c].description,"ch3a") || strstr(img.d[c].description,"M10")) channel3a = c;
     	if(strstr(img.d[c].description,"ch3b") || strstr(img.d[c].description,"M12")) channel3b = c;
     	if(strstr(img.d[c].description,"ch4") || strstr(img.d[c].description,"M15")) channel4 = c;
     	if(strstr(img.d[c].description,"ch5") || strstr(img.d[c].description,"M16")) channel5 = c;
+    	 fprintf(stdout,"Gain, intercept %s: %f %f\n", img.d[c].description, img.d[c].scalefactor.slope->gain,img.d[c].scalefactor.slope->intercept);
     }
 //    fprintf(stdout,"Channels 1:%d 2:%d 3a:%d 3b:%d 4:%d 5:%d\n",channel1, channel2, channel3a, channel3b, channel4, channel5);
+
 
     /*
      * Start of nested loops that run through all pixels.
@@ -178,6 +180,18 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     		}
 
 
+//    	Old sun zenith angle calculation:
+//    		cart.row = yc;
+//    		cart.col = xc;
+//    		ucspos = fmind2ucs(ucs0, cart);
+//    		geop = fmucs2geo(ucspos,MI);
+//    		/*tst needed to compensate for changes in fmsolarzenith:*/
+//    		tst = fmutc2tst(timeidsec, geop.lon);
+//    		zsun2 = fmsolarzenith(tst, geop);
+//
+//    		fprintf(stdout,"%f,%f ", zsun, zsun2);
+
+
     		if (zsun < FMSNOWSUNZEN) {
     			cpar.algo = 2;
     		} else {
@@ -198,7 +212,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
 //    		 */
 
 
-    		if ((img.d[channel4].intarray[xc][yc] == 0) && (img.d[channel5].intarray[xc][yc] == 0)) {
+    		if ((img.d[channel4].intarray[yc][xc] == 0) && (img.d[channel5].intarray[yc][xc] == 0)) {
     			for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
     				((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_NOCOV;
     			}
@@ -210,15 +224,15 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     		 */
     		cpar.daytime3b = 0;
     		if(cpar.algo == 2 && channel3b > 0) {
-    			if (strstr(img.h.sensor_name,"avhrr")) cpar.daytime3b = 1; //Use 3b data if provided in data file instead of 3a (avhrr)
-    			if (strstr(img.h.sensor_name,"viirs") && img.d[channel3a].intarray[xc][yc] == 0 && img.d[channel3b].intarray[xc][yc] > 0) cpar.daytime3b = 1; //Use 3b data if it 3a data does not exists for this time step (viirs)
+    			if (strstr(img.h.sensor_name,"avhrr")) cpar.daytime3b = 1; //Use 3b data if no 3a data provided (avhrr)
+    			if (strstr(img.h.sensor_name,"viirs") && img.d[channel3a].intarray[yc][xc] == 0 && img.d[channel3b].intarray[yc][xc] > 0) cpar.daytime3b = 1; //Use 3b data if 3a data does not exists for this time step (viirs)
     		}
 
     		/*
     		 * AVHRR: Added hack on 3A due to saturation problems...
     		 */
     		if (!cpar.daytime3b  && strstr(img.h.sensor_name,"avhrr")) { //If 3a data is provided by instrument avhrr
-    			if ((img.d[2].intarray[xc][yc] == 0) && (img.d[3].intarray[xc][yc] > 50)) { //If channel 3a data = 0 and channel 4 (another IR channel) data > 50
+    			if ((img.d[channel3a].intarray[yc][xc] == 0) && (img.d[channel4].intarray[yc][xc] > 50)) { //If channel 3a data = 0 and channel 4 (another IR channel) data > 50
     				class[i] = 0;
     				for (j=0; j<FMSNOWCOVER_OLEVELS; j++) {
     					((float *) probs[j].data)[i] = FMSNOWCOVERMISVAL_3A; //Set probability to default value
@@ -226,6 +240,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     				continue;
     			}
     		}
+
 
     		cpar.lmask = 0;
     		if (lmask == NULL) { //If no landmask
@@ -235,7 +250,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     			}
     		}
     		else {
-    			int landmask = +lmask[xc][yc];
+    			int landmask = +lmask[yc][xc];
     			cpar.lmask = (short) landmask; //Else, use landmask provided in physiography file
     		}
 
@@ -248,15 +263,16 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     		 * Dimension of temperatures are Kelvin.
     		 */
 
-    		//"Unpack" compressed data (from int/short to float)
-    		cpar.A1 = img.d[channel1].intarray[xc][yc]*img.d[channel1].scalefactor.slope->gain + img.d[channel1].scalefactor.slope->intercept;
-    		cpar.A2 = img.d[channel2].intarray[xc][yc]*img.d[channel2].scalefactor.slope->gain + img.d[channel2].scalefactor.slope->intercept;
-    		if(channel3a > 0) cpar.A3 = img.d[channel3a].intarray[xc][yc]*img.d[channel3a].scalefactor.slope->gain + img.d[channel3a].scalefactor.slope->intercept;
-    		if(channel3b > 0) cpar.T3 = img.d[channel3b].intarray[xc][yc]*img.d[channel3b].scalefactor.slope->gain + img.d[channel3b].scalefactor.slope->intercept;
-    		cpar.T4 = img.d[channel4].intarray[xc][yc]*img.d[channel4].scalefactor.slope->gain + img.d[channel4].scalefactor.slope->intercept;
-    		cpar.T5 = img.d[channel5].intarray[xc][yc]*img.d[channel5].scalefactor.slope->gain + img.d[channel5].scalefactor.slope->intercept;
 
-    		//fprintf(stdout,"Data: %f %f %f %f %f %f %f\n",cpar.A1,cpar.A2,cpar.A3,cpar.T3,cpar.T4,cpar.T5,zsun);
+    		//"Unpack" compressed data (from int/short to float): data*gain + intercept
+    		cpar.A1 = img.d[channel1].intarray[yc][xc]*img.d[channel1].scalefactor.slope->gain + img.d[channel1].scalefactor.slope->intercept;
+    		cpar.A2 = img.d[channel2].intarray[yc][xc]*img.d[channel2].scalefactor.slope->gain + img.d[channel2].scalefactor.slope->intercept;
+    		if(channel3a > 0) cpar.A3 = img.d[channel3a].intarray[yc][xc]*img.d[channel3a].scalefactor.slope->gain + img.d[channel3a].scalefactor.slope->intercept;
+    		if(channel3b > 0) cpar.T3 = img.d[channel3b].intarray[yc][xc]*img.d[channel3b].scalefactor.slope->gain + img.d[channel3b].scalefactor.slope->intercept;
+    		cpar.T4 = img.d[channel4].intarray[yc][xc]*img.d[channel4].scalefactor.slope->gain + img.d[channel4].scalefactor.slope->intercept;
+    		cpar.T5 = img.d[channel5].intarray[yc][xc]*img.d[channel5].scalefactor.slope->gain + img.d[channel5].scalefactor.slope->intercept;
+
+//    		fprintf(stdout,"Data: %f %f %f %f %f %f %f\n",cpar.A1,cpar.A2,cpar.A3,cpar.T3,cpar.T4,cpar.T5,zsun, img.h.);
 
     		cpar.soz = zsun;
     		cpar.saz = 0.;
@@ -269,7 +285,6 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     		/* Estimate the reflective part of daytime channel 3b */
     		if (cpar.daytime3b){
     			cpar.A3b = fm_ch3brefl(cpar.T3,cpar.T4,cpar.soz,img.h.platform_name,doy);
-//    			fprintf(stdout,"Data: %f %f %f %s %d %f\n",cpar.T3,cpar.T4,cpar.soz,img.h.platform_name,doy,cpar.A3b);
     		}
     		/*Get probability estimates*/
     		if (i == 0) {
@@ -280,8 +295,6 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     					"Something went wrong in pixel processing of %d",i);
     			fmerrmsg(where,what);
     		}
-//    		fprintf(stdout,"Data: %f %f %f",p.pcloud,p.pfree,p.pice);
-//    		if(p.pfree > p.pcloud) fprintf(stdout,"Data: %f %f %f",p.pcloud,p.pfree,p.pice);
 
     		/*
     		 * Adding this to prevent classification when probabilities do

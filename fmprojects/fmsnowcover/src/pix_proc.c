@@ -125,6 +125,9 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 
     fm_img2slopes(img,&calib); /*collects gain and intercept*/
 
+//    fprintf(stdout, "Gain, intercept refl: %f %f", img.rga, img.ria);
+//    fprintf(stdout, "Gain, intercept temp: %f %f", img.rgt, img.rit);
+
     doy = fmdayofyear(timeid);
 
     /*
@@ -231,9 +234,9 @@ int process_pixels4ice(fmio_img img, unsigned char *cmask[],
 	     */
 
 	    if (cpar.algo == 2 && img.z > 3) {
-	        cpar.A1 = fm_byte2float(img.image[0][i], calib, "Reflectance");
-		cpar.A2 = fm_byte2float(img.image[1][i], calib, "Reflectance");
-		cpar.A3 = fm_byte2float(img.image[5][i], calib, "Reflectance");
+	    	cpar.A1 = fm_byte2float(img.image[0][i], calib, "Reflectance");
+	    	cpar.A2 = fm_byte2float(img.image[1][i], calib, "Reflectance");
+	    	cpar.A3 = fm_byte2float(img.image[5][i], calib, "Reflectance");
 	    }
 	    cpar.T3 = fm_byte2float(img.image[2][i], calib, "Temperature");
 	    cpar.T4 = fm_byte2float(img.image[3][i], calib, "Temperature");
