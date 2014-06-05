@@ -70,7 +70,7 @@
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
 int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
-       unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
+       int **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof) {
 
 	//Input: data struct, cmask?, landmask struct, model data (NWP) struct, sun zenith angles struct, struct with info,
@@ -140,7 +140,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     	if(strstr(img.d[c].description,"ch3b") || strstr(img.d[c].description,"M12")) channel3b = c;
     	if(strstr(img.d[c].description,"ch4") || strstr(img.d[c].description,"M15")) channel4 = c;
     	if(strstr(img.d[c].description,"ch5") || strstr(img.d[c].description,"M16")) channel5 = c;
-    	 fprintf(stdout,"Gain, intercept %s: %f %f\n", img.d[c].description, img.d[c].scalefactor.slope->gain,img.d[c].scalefactor.slope->intercept);
+//    	 fprintf(stdout,"Gain, intercept %s: %f %f\n", img.d[c].description, img.d[c].scalefactor.slope->gain,img.d[c].scalefactor.slope->intercept);
     }
 //    fprintf(stdout,"Channels 1:%d 2:%d 3a:%d 3b:%d 4:%d 5:%d\n",channel1, channel2, channel3a, channel3b, channel4, channel5);
 
@@ -187,9 +187,9 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
 //    		geop = fmucs2geo(ucspos,MI);
 //    		/*tst needed to compensate for changes in fmsolarzenith:*/
 //    		tst = fmutc2tst(timeidsec, geop.lon);
-//    		zsun2 = fmsolarzenith(tst, geop);
-//
-//    		fprintf(stdout,"%f,%f ", zsun, zsun2);
+//    		zsun = fmsolarzenith(tst, geop);
+
+//    		if(zsun > FMSNOWSUNZEN) fprintf(stdout,"%f,%f ", zsun, zsun2);
 
 
     		if (zsun < FMSNOWSUNZEN) {
@@ -241,7 +241,6 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     			}
     		}
 
-
     		cpar.lmask = 0;
     		if (lmask == NULL) { //If no landmask
     			if (i == 0) {
@@ -250,8 +249,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     			}
     		}
     		else {
-    			int landmask = +lmask[yc][xc];
-    			cpar.lmask = (short) landmask; //Else, use landmask provided in physiography file
+    			cpar.lmask = (short) lmask[yc][xc]; //Else, use landmask provided in physiography file
     		}
 
     		/*
@@ -397,11 +395,12 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
 
     		if ((p.pice > p.pfree) && (p.pice > p.pcloud)) {
     			cat[i] = ICE;
-//    			fprintf(stdout,"Cat: ICE ");
+//    			if(yc == (int)(0.5*img.h.ysize) && xc<100) fprintf(stdout,"ICE %d %d %f %f %f %f %f %f %f %f %f %d %f\n", yc, xc, p.pice, p.pfree, p.pcloud, cpar.A1, cpar.A2,cpar.T3,cpar.T4,cpar.T5,cpar.tdiff,cpar.lmask,cpar.soz);
     		} else if ((p.pfree > p.pice) && (p.pfree > p.pcloud)) {
     			cat[i] = CLEAR;
-//    			fprintf(stdout,"Cat: CLEAR ");
+//    			if(yc == (int)(0.5*img.h.ysize) && xc<100) fprintf(stdout,"CLEAR %d %d %f %f %f %f %f %f %f %f %f %d %f\n", yc, xc, p.pice, p.pfree, p.pcloud, cpar.A1, cpar.A2,cpar.T3,cpar.T4,cpar.T5,cpar.tdiff,cpar.lmask,cpar.soz);
     		} else if ((p.pcloud > p.pice) && (p.pcloud > p.pfree)){
+//    			if(yc == (int)(0.5*img.h.ysize) && xc<100) fprintf(stdout,"CLOUD %d %d %f %f %f %f %f %f %f %f %f %d %f\n", yc, xc, p.pice, p.pfree, p.pcloud, cpar.A1, cpar.A2,cpar.T3,cpar.T4,cpar.T5,cpar.tdiff,cpar.lmask,cpar.soz);
     			cat[i] = CLOUD;
 //    			fprintf(stdout,"Cat: CLOUD ");
     		} else { /*some probs. are equal*/
@@ -410,6 +409,7 @@ int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
     		}
 
     	}
+//    	if(yc > 0.7*img.h.ysize) fprintf(stdout,"\n");
     }
     fmlogmsg(where,"Now returning to main...");
 

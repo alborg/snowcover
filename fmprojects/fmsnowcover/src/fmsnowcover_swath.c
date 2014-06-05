@@ -67,9 +67,8 @@
 
 //./fmsnowcover -c ../etc/cfgfile_fmsnowcover_new.txt -i noaa18_20140602_0527_46545_satproj_00000_03775_avhrr.h5 -l noaa18_20140602_0527_46545_satproj_00000_03775_physiography.h5 -s noaa18_20140602_0527_46545_satproj_00000_03775_sunsatangles.h5
 //
-//cover: 99.496819
-// cloudfree: 0.234591
-// notcovered: 0.002901
+
+
 
 
 #include <fmsnowcover.h>
@@ -77,7 +76,8 @@
 #include <fmaccusnow.h>
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
-int main(int argc, char *argv[]) {
+
+int main2(int argc, char *argv[]) {
 
 
     char *where="fmsnowcover_swath";
@@ -233,6 +233,7 @@ int main(int argc, char *argv[]) {
      *
      * Checking channel 1
      */
+
     size = img.h.xsize*img.h.ysize;
     int valpix = 0;
     int i,j;
@@ -249,6 +250,49 @@ int main(int argc, char *argv[]) {
     			"The percentage coverage (%.0f%) of this scene is too small for further processing.",cover);
     	exit(FM_OK);
     }
+
+    /*
+     * Get land/sea mask produced by PPS.
+     */
+
+    lm.d = NULL;
+    if (lmask_located = fopen(lmaskf,"r")) {
+    	fprintf(stdout," Reading land/sea mask (GTOPO30 based):\n %s\n", lmaskf);
+    	//status = read_hdf5_product(lmaskf, &lm, 0);
+    	status = fm_readMETSATdata_swath(lmaskf, &lm);
+    	fclose(lmask_located);
+    	if (status != 0) {
+    		fprintf(stderr,"%s\n"," Trouble processing:");
+    		fprintf(stderr,"%s\n",lmaskf);
+    		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read land/sea mask");
+    		return(FM_IO_ERR);
+    	}
+
+    }
+    else {
+    	fmlogmsg(where,"No landmask is available, continuing without.");
+    }
+
+
+    /*
+     * Get sun zenith angle, produced by PPS
+     */
+    if (sunzen_located = fopen(sunzenf,"r")) {
+    	fprintf(stdout," Reading sun zenith angle: %s\n", sunzenf);
+    	status = fm_readMETSATdata_swath(sunzenf, &sz);
+    	fclose(sunzen_located);
+    	if (status != 0) {
+    		fprintf(stderr,"%s\n"," Trouble processing:");
+    		fprintf(stderr,"%s\n",sunzenf);
+    		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read sun zenith angle");
+    		return(FM_IO_ERR);
+    	}
+    }
+    else {
+    	fmerrmsg(where,"No sun zenith angle file available!\n");
+    	exit(FM_IO_ERR);
+    }
+
 
 
     //Transfer info
@@ -284,52 +328,6 @@ int main(int argc, char *argv[]) {
     	exit(FM_IO_ERR);
     }
 #endif
-
-
-
-    /*
-     * Get land/sea mask produced by PPS.
-     */
-
-    lm.d = NULL;
-    if (lmask_located = fopen(lmaskf,"r")) {
-    	fprintf(stdout," Reading land/sea mask (GTOPO30 based):\n %s\n", lmaskf);
-    	//status = read_hdf5_product(lmaskf, &lm, 0);
-    	status = fm_readMETSATdata_swath(lmaskf, &lm);
-    	fclose(lmask_located);
-    	if (status != 0) {
-    		fprintf(stderr,"%s\n"," Trouble processing:");
-    		fprintf(stderr,"%s\n",lmaskf);
-    		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read land/sea mask");
-    		return(FM_IO_ERR);
-    	}
-
-    }
-    else {
-    	fmlogmsg(where,"No landmask is available, continuing without.");
-    }
-
-
-
-    /*
-     * Get sun zenith angle, produced by PPS
-     */
-    if (sunzen_located = fopen(sunzenf,"r")) {
-        	fprintf(stdout," Reading sun zenith angle: %s\n", sunzenf);
-        	status = fm_readMETSATdata_swath(sunzenf, &sz);
-        	fclose(sunzen_located);
-        	if (status != 0) {
-        		fprintf(stderr,"%s\n"," Trouble processing:");
-        		fprintf(stderr,"%s\n",sunzenf);
-        		fprintf(stderr,"%s %s\n", fmerrmsg,"Could not read sun zenith angle");
-        		return(FM_IO_ERR);
-        	}
-        }
-        else {
-        	fmerrmsg(where,"No sun zenith angle file available!\n");
-        	exit(FM_IO_ERR);
-        }
-
 
 
         /*
@@ -393,7 +391,7 @@ int main(int argc, char *argv[]) {
       status = process_pixels4ice_swath(img, NULL, NULL, nwp, sz,
 				  ice.d, classed, cat, 2, coeffs);
     } else {
-      status = process_pixels4ice_swath(img, NULL, (unsigned char **)(lm.d->intarray), nwp, sz,
+      status = process_pixels4ice_swath(img, NULL, (int **)(lm.d[0].intarray), nwp, sz,
 				  ice.d, classed, cat, 2, coeffs);
     }
 

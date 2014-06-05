@@ -197,7 +197,7 @@ int process_pixels4ice(fmio_img img,
     short algo, statcoeffstr cof);
 
 int process_pixels4ice_swath(fmdataset img, unsigned char *cmask[],
-       unsigned char **lmask, nwpice nwp, fmdataset sz, datafield *probs,
+       int **lmask, nwpice nwp, fmdataset sz, datafield *probs,
        unsigned char *class, unsigned char *cat, short algo, statcoeffstr cof);
 
 void moment(float data[], int n, float *ave, float *adev, float *sdev,

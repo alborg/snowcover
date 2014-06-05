@@ -142,7 +142,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
     	hid_t ds_id; //Dataset id
     	hid_t dataset_id;
-    	int *mydata;
+    	unsigned char *mydata;
     	hsize_t dsize;
 
     	hid_t str, dataspace, dataset, datatype;
@@ -160,7 +160,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	//Set data space sizes
     	dsd_d[0] = fd->h.xsize;
     	dsd_d[1] = fd->h.ysize;
-    	fd->h.layers = 1; //There is only one data set (fracofland) in this file that we want to read into a datafield struct.
+    	fd->h.layers = 2; //There are two data sets (fracofland and the palette) in this file that we want to read into a datafield struct.
 
 
     	dataset = H5Dopen(file,"fracofland"); //Open dataset "fracofland"
@@ -181,15 +181,17 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     			fmerrmsg(where,"Could not allocate data array");
     			return(FM_MEMALL_ERR);
     		}
-    		if (fmalloc_int_vector(&mydata, (fd->h.xsize*fd->h.ysize))) {
+//    		if (fmalloc_int_vector(&mydata, (fd->h.xsize*fd->h.ysize))) {
+    		if (fmalloc_uchar_vector(&mydata, (fd->h.xsize*fd->h.ysize))) {
     			fmerrmsg(where,"Could not allocate data array");
     			return(FM_MEMALL_ERR);
     		}
 
+
     		fd->d[0].dtype = FMINT; //The data type is int
 
     		//Read data into temp 1d array mydata
-    		status = H5Dread(dataset, H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
+    		status = H5Dread(dataset, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
     		if (status < 0) {
     			fmerrmsg(where,"Could not read data field");
     			return(FM_IO_ERR);
@@ -209,18 +211,74 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		int j,k;
     		for (j=0;j<fd->h.ysize; j++) {
     			for (k=0;k<fd->h.xsize; k++) {
-    				(fd->d)[0].intarray[j][k] = mydata[fmivec(k, j, fd->h.xsize)];
+    				(fd->d)[0].intarray[j][k] = +mydata[fmivec(k, j, fd->h.xsize)];
     			}
     		}
 
     		//Free the temporary array
-    		if (fmfree_int_vector(mydata)) {
+    		if (fmfree_uchar_vector(mydata)) {
     			fmerrmsg(where,"Could not free mydata");
     			return(FM_MEMALL_ERR);
     		}
 
-    	}
 
+
+//    		dataset = H5Dopen(file,"FractionOfLandPALETTE"); //Open dataset palette
+//    		if (dataset < 0) {
+//    			fmerrmsg(where,"Could not find dataset palette");
+//    			return(FM_IO_ERR);
+//    		};
+//
+//    		dsd_d[0] = 256;
+//    		dsd_d[1] = 3;
+//
+//    		//Allocate dataspace, a data field in the struct, a 2d array in the data field and a 1d temp array (for reading data into).
+//    		dataspace = H5Screate_simple(2, dsd_d, NULL);
+//    		if (dataspace < 0) {
+//    			fmerrmsg(where,"Could not create dataspace");
+//    			return(FM_IO_ERR);
+//    		};
+//    		if (fmalloc_int_2d(&((fd->d)[1].intarray),3,256)) {
+//    			fmerrmsg(where,"Could not allocate data array");
+//    			return(FM_MEMALL_ERR);
+//    		}
+//    		if (fmalloc_uchar_vector(&mydata, (3*256))) {
+//    			fmerrmsg(where,"Could not allocate data array");
+//    			return(FM_MEMALL_ERR);
+//    		}
+//
+//    		fd->d[1].dtype = FMINT; //The data type is int
+//
+//    		//Read data into temp 1d array mydata
+//    		status = H5Dread(dataset, H5T_STD_U8LE, H5S_ALL, H5S_ALL, H5P_DEFAULT,mydata);
+//    		if (status < 0) {
+//    			fmerrmsg(where,"Could not read data field");
+//    			return(FM_IO_ERR);
+//    		};
+//    		status = H5Dclose(dataset);
+//    		if (status < 0) {
+//    			fmerrmsg(where,"Could not close dataset in HDF5 file");
+//    			return(FM_IO_ERR);
+//    		};
+//    		status = H5Sclose(dataspace);
+//    		if (status < 0) {
+//    			fmerrmsg(where,"Could not close field dataspace in HDF5 file");
+//    			return(FM_IO_ERR);
+//    		};
+//
+//    		//Transfer data from temporary array to data field in struct
+//    		for (j=0;j<3; j++) {
+//    			for (k=0;k<256; k++) {
+//    				(fd->d)[1].intarray[j][k] = +mydata[fmivec(k, j, 256)];
+//    			}
+//    		}
+//
+//    		//Free the temporary array
+//    		if (fmfree_uchar_vector(mydata)) {
+//    			fmerrmsg(where,"Could not free mydata");
+//    			return(FM_MEMALL_ERR);
+//    		}
+    	}
     }
 
     //Close the file
