@@ -82,7 +82,6 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     grp = H5Gopen(file,"how"); //Try to open group "how" in file
     if(grp >= 0) { //If the group exists = the file is a avhrr/viirs data file or sun zenith angle file
 
-    	fprintf(stdout,"Testing 0!\n");
 
     	//Read "how" group data (satellite name, instrument, orbit number, epoch)
     	if (fm_extracthow(grp, &(fd->h))) {
