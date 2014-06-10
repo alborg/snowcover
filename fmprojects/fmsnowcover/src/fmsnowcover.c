@@ -63,7 +63,7 @@
 #include <fmaccusnow.h>
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
-int main(int argc, char *argv[]) {
+int main2(int argc, char *argv[]) {
 
     char *where="fmsnowcover";
     char what[FMSNOWCOVER_MSGLENGTH];

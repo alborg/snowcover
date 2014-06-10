@@ -77,7 +77,7 @@
 /*#undef FMSNOWCOVER_HAVE_LIBUSENWP*/
 
 
-int main2(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 
 
     char *where="fmsnowcover_swath";
@@ -177,6 +177,7 @@ int main2(int argc, char *argv[]) {
     	exit(FM_MEMALL_ERR);
     }
     sprintf(infile,"%s/%s",cfg.imgpath,fname);
+
 
     //Landmask file
     lmaskf = (char *) malloc(FILELEN);

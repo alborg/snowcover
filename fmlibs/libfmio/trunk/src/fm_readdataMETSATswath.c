@@ -82,6 +82,8 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     grp = H5Gopen(file,"how"); //Try to open group "how" in file
     if(grp >= 0) { //If the group exists = the file is a avhrr/viirs data file or sun zenith angle file
 
+    	fprintf(stdout,"Testing 0!\n");
+
     	//Read "how" group data (satellite name, instrument, orbit number, epoch)
     	if (fm_extracthow(grp, &(fd->h))) {
     		fmerrmsg(where,"Could not decode HOW group in file");
@@ -92,6 +94,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		fmerrmsg(where,"Could not close group in %s", filename);
     		return(FM_IO_ERR);
     	};
+
 
     	//Read "what" group data (date, time, number of layers (channels/images))
     	grp = H5Gopen(file,"what");
@@ -105,6 +108,8 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     		fmerrmsg(where,"Could not close group in %s", filename);
     		return(FM_IO_ERR);
     	};
+
+
 
     	//Read "where" group data (xsize, ysize, xscale, yscale)
     	grp = H5Gopen(file,"where");
@@ -120,6 +125,7 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
     	};
 
 
+
     	//Read actual data content (the channel/image data), variable number of channels/images
     	if (fm_extractimagedata(file, fd)) {
     		fmerrmsg(where,"Could not decode image data");
@@ -128,10 +134,17 @@ int fm_readMETSATdata_swath(char *filename, fmdataset *fd) {
 
 
     	//Check which satellite/instrument
-    	if (strstr(fd->h.platform_name,"noaa") || strstr(fd->h.platform_name,"npp")) {
+    	if (strstr(fd->h.sensor_name,"avhrr") || strstr(fd->h.sensor_name,"viirs")) {
     		if (strstr(fd->h.platform_name,"noaa")) {
     			char name[6]; strncpy(name,fd->h.platform_name,6);
     			sprintf(fd->h.platform_name, "NOAA-%s",&(name[4])); //Re-spell name (e.g. NOAA-18)
+    		}
+    		if (strstr(fd->h.platform_name,"npp")) {
+    			sprintf(fd->h.platform_name, "NPP"); //Re-spell name
+    		}
+    		if (strstr(fd->h.platform_name,"metop")) {
+    			char name[7]; strncpy(name,fd->h.platform_name,7);
+    			sprintf(fd->h.platform_name, "MetOp-0%s",&(name[6])); //Re-spell name (e.g. MetOp-01)
     		}
     		fmlogmsg(where,"This is a H5 file containing data from %s: %s",fd->h.platform_name,fd->h.sensor_name);
     	}    else { fmerrmsg(where, "Do not recognize instrument, bailing out!"); return(FM_OTHER_ERR); }
@@ -694,9 +707,11 @@ int fm_extractwhere(hid_t grp, fmheader *h) {
     	return(FM_MEMALL_ERR);
     }
 
+
     status = H5Dread(dataset,
     		H5T_NATIVE_INT, H5S_ALL, H5S_ALL, H5P_DEFAULT,
     		mydata);
+
 
     if (status < 0) {
     	fmerrmsg(where,"Could not read data field");
@@ -953,7 +968,7 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     /*
      * Decode platform information
      */
-    if (fm_create_hdf5_string(&str, 7)) {
+    if (fm_create_hdf5_string(&str, 10)) {
         fmerrmsg(where,"Could not create str");
         return(FM_OTHER_ERR);
     }
@@ -1015,7 +1030,6 @@ int fm_extracthow(hid_t grp, fmheader *h) {
     	fmerrmsg(where,"Could not release str");
     	return(FM_OTHER_ERR);
     }
-
 
 
     /*
